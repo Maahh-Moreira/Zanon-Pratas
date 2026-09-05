@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Zanon Pratas</title>
+<title>ZM Pratas</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -253,7 +253,7 @@ html.dark .app-notice.info{background:#132337;border-color:#1e3a5f;color:#93c5fd
 <body>
 <div id="auth">
   <aside class="auth-visual">
-    <div class="auth-logo">Zanon Pratas</div>
+    <div class="auth-logo">ZM Pratas</div>
     <div class="auth-copy">
       <h2>Prata que<br>define presença.</h2>
       <p>Peças e gestão com o mesmo cuidado: precisão, brilho e controle.</p>
@@ -269,7 +269,7 @@ html.dark .app-notice.info{background:#132337;border-color:#1e3a5f;color:#93c5fd
   </aside>
   <main class="auth-side">
     <div class="auth-card" id="login-card">
-      <div class="brand">Zanon Pratas</div>
+      <div class="brand">ZM Pratas</div>
       <h1>Entrar</h1>
       <p class="sub">Acesse sua conta</p>
       <div class="auth-error" id="login-error"></div>
@@ -291,7 +291,7 @@ html.dark .app-notice.info{background:#132337;border-color:#1e3a5f;color:#93c5fd
     </div>
 
     <div class="auth-card hidden" id="register-card">
-      <div class="brand">Zanon Pratas</div>
+      <div class="brand">ZM Pratas</div>
       <h1>Criar conta</h1>
       <p class="sub">Preencha seus dados para começar</p>
       <div class="auth-error" id="reg-error"></div>
@@ -328,7 +328,7 @@ html.dark .app-notice.info{background:#132337;border-color:#1e3a5f;color:#93c5fd
 <div id="app" class="hidden">
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <span>Zanon Pratas</span>
+      <span>ZM Pratas</span>
       <button class="theme-btn" id="theme-btn" title="Modo escuro/claro" onclick="toggleTheme()">☾</button>
     </div>
     <nav class="sidebar-nav">
@@ -359,11 +359,11 @@ html.dark .app-notice.info{background:#132337;border-color:#1e3a5f;color:#93c5fd
 <div id="toast-root"></div>
 
 <script>
-const USERS_KEY = 'zanon_users_v2';
-const SESSION_KEY = 'zanon_session_v2';
-const THEME_KEY = 'zanon_theme_v2';
+const USERS_KEY = 'ZM_users_v2';
+const SESSION_KEY = 'ZM_session_v2';
+const THEME_KEY = 'ZM_theme_v2';
 
-function dataKey(uid){ return `zanon_data_${uid}_v2`; }
+function dataKey(uid){ return `ZM_data_${uid}_v2`; }
 
 function loadUsers(){
   try { return JSON.parse(localStorage.getItem(USERS_KEY)||'[]'); } catch { return []; }
