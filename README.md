@@ -1,4 +1,4 @@
-# Zanon Joias – Sistema SaaS
+# Zm Pratas – Sistema SaaS com Firebase
 
 Sistema de gestão para joalheria: produtos, estoque, vendas, clientes, compras e gastos.
 
