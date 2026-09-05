@@ -1,4 +1,4 @@
-# Zanon Joias – Sistema SaaS com MySQL
+# Zanon Joias – Sistema SaaS
 
 Sistema de gestão para joalheria: produtos, estoque, vendas, clientes, compras e gastos.
 
