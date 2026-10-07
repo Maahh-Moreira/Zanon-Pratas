@@ -102,6 +102,11 @@ td a{color:var(--blue-accent);text-decoration:none}
 .modal-msg{font-size:.84rem;color:var(--muted);line-height:1.5}
 .sync-badge{font-size:.72rem}
 .badge.ok{background:#d1fae5;color:#065f46}.badge.warn{background:#fef3c7;color:#92400e}
+.hero{background:linear-gradient(135deg,#0f2744,#163a5f 60%,#1d4f82);color:#fff;border-radius:16px;padding:1.6rem 1.7rem;margin-bottom:1.3rem;box-shadow:var(--shadow)}
+.hero.neg{background:linear-gradient(135deg,#7f1d1d,#b91c1c)}
+.hero-label{font-size:.82rem;opacity:.85;letter-spacing:.04em}
+.hero-value{font-family:'Cormorant Garamond',serif;font-size:3rem;font-weight:600;line-height:1.1;margin:.3rem 0 .6rem}
+.hero-eq{font-size:.78rem;opacity:.8;margin-top:.15rem}
 @media(max-width:1100px){.kpi-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:820px){
 .auth-visual{display:none}
@@ -160,6 +165,7 @@ td a{color:var(--blue-accent);text-decoration:none}
       <button class="nav-item" data-page="pedidos" onclick="go('pedidos')"><span class="ico">❖</span><span>Pedidos</span></button>
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
       <button class="nav-item" data-page="compras" onclick="go('compras')"><span class="ico">◇</span><span>Compras</span></button>
+      <button class="nav-item" data-page="reinvest" onclick="go('reinvest')"><span class="ico">↻</span><span>Reinvestimento</span></button>
       <button class="nav-item" data-page="gastos" onclick="go('gastos')"><span class="ico">▣</span><span>Gastos</span></button>
     </nav>
     <div class="sidebar-footer">
@@ -296,9 +302,9 @@ function openModal(title, body, onSave, opts={}){
 function go(page){
   PAGE=page;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',compras:'Compras / Estoque',gastos:'Gastos',pedidos:'Pedidos'};
+  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',compras:'Compras / Estoque',gastos:'Gastos',pedidos:'Pedidos',reinvest:'Reinvestimento'};
   document.getElementById('page-title').textContent=titles[page];
-  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,compras:renderCompras,gastos:renderGastos,pedidos:renderPedidos};
+  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,compras:renderCompras,gastos:renderGastos,pedidos:renderPedidos,reinvest:renderReinvest};
   document.getElementById('content').innerHTML=r[page]();
 }
 
@@ -370,8 +376,8 @@ function delProduto(id){
 /* ---------- Vendas ---------- */
 function renderVendas(){
   return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'vendas-table')"/><button class="btn btn-primary" onclick="modalVenda()">+ Nova venda</button></div>
-  <div class="card"><div class="table-wrap"><table id="vendas-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Desconto</th><th>Valor final</th><th>Pagamento</th><th></th></tr></thead><tbody>
-  ${DATA.vendas.map(v=>`<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${v.qtd}</td><td>${v.desconto>0?`<span class="badge warn">− ${money(v.desconto)}</span>`:'—'}</td><td><strong>${money(v.valor)}</strong></td><td>${pagtoLabel(v)}</td>
+  <div class="card"><div class="table-wrap"><table id="vendas-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Ajuste</th><th>Valor final</th><th>Pagamento</th><th></th></tr></thead><tbody>
+  ${DATA.vendas.map(v=>`<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${v.qtd}</td><td>${v.desconto>0?`<span class="badge warn">− ${money(v.desconto)}</span>`:v.acrescimo>0?`<span class="badge ok">+ ${money(v.acrescimo)}</span>`:'—'}</td><td><strong>${money(v.valor)}</strong></td><td>${pagtoLabel(v)}</td>
   <td>${parcelasDe(v).length?`<button class="btn btn-outline btn-sm" onclick="modalParcelas('${v.id}')">Parcelas</button> `:''}<button class="btn btn-danger btn-sm" onclick="delVenda('${v.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="8" class="empty">Nenhuma venda</td></tr>'}
   </tbody></table></div></div>`;
 }
@@ -384,8 +390,8 @@ function modalVenda(){
     <div class="field"><label>Produto</label><select id="f-prod" onchange="updVenda()">${op}</select></div>
     <div class="row-2"><div class="field"><label>Qtd</label><input id="f-qtd" type="number" min="1" value="1" oninput="updVenda()"/></div>
     <div class="field"><label>Subtotal</label><input id="f-sub" type="number" step="0.01" readonly/></div></div>
-    <div class="row-2"><div class="field"><label>Desconto</label><div style="display:flex;gap:.4rem"><input id="f-dsc" type="number" step="0.01" min="0" placeholder="0" oninput="updVenda()"/><select id="f-dtipo" onchange="updVenda()" style="width:76px;flex:none"><option value="r">R$</option><option value="p">%</option></select></div></div>
-    <div class="field"><label>Valor final</label><input id="f-val" type="number" step="0.01" readonly/></div></div>
+    <div class="row-2"><div class="field"><label>Desconto / acréscimo</label><div style="display:flex;gap:.4rem"><input id="f-dsc" type="number" step="0.01" min="0" placeholder="0" oninput="updVenda()"/><select id="f-dtipo" onchange="updVenda()" style="width:96px;flex:none"><option value="-r">Desc. R$</option><option value="-p">Desc. %</option><option value="+r">Acrésc. R$</option><option value="+p">Acrésc. %</option></select></div></div>
+    <div class="field"><label>Valor final (pode editar)</label><input id="f-val" type="number" step="0.01" min="0" oninput="updVenda('final')"/></div></div>
     <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div>
     <div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option>${[2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">${n} vezes</option>`).join('')}</select></div></div>
     <div id="box-2x" style="display:none"><div class="row-2"><div class="field"><label>Vencimento da 2ª parcela</label><input id="f-venc2" type="date" value="${addDays(today(),30)}"/></div>
@@ -407,18 +413,20 @@ function modalVenda(){
       if(est<qtd) throw Object.assign(new Error(),{userMsg:'Estoque insuficiente.'});
       t.update(pref,{estoque:est-qtd});
       // grava nomes e custo no momento da venda (histórico e lucro corretos)
-      t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',produtoId,produtoNome:pd.nome,custo:Number(pd.custo||0),qtd,subtotal,desconto:round2(subtotal-valor),valor,data,createdAt:TS()});
+      t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',produtoId,produtoNome:pd.nome,custo:Number(pd.custo||0),qtd,subtotal,desconto:Math.max(0,round2(subtotal-valor)),acrescimo:Math.max(0,round2(valor-subtotal)),valor,data,createdAt:TS()});
     });
     return true;
   });
   updVenda();
 }
-function updVenda(){
+function updVenda(src){
   const sel=document.getElementById('f-prod'); if(!sel) return;
   const pr=+(sel.options[sel.selectedIndex]?.dataset.preco||0), q=+(val('f-qtd')||1);
-  const sub=pr*q, d=+val('f-dsc')||0, desc=val('f-dtipo')==='p'?sub*Math.min(d,100)/100:Math.min(d,sub);
+  const sub=pr*q;
   document.getElementById('f-sub').value=sub.toFixed(2);
-  document.getElementById('f-val').value=(sub-desc).toFixed(2);
+  if(src==='final'){ document.getElementById('f-dsc').value=''; return; }
+  const d=+val('f-dsc')||0, t=val('f-dtipo'), m=t[1]==='p'?sub*d/100:d;
+  document.getElementById('f-val').value=(t[0]==='-'?Math.max(0,sub-Math.min(m,sub)):sub+m).toFixed(2);
 }
 function updPag(){ document.getElementById('box-2x').style.display=val('f-pag')!=='1'?'block':'none'; }
 function modalParcelas(id){
@@ -500,7 +508,8 @@ function modalCompra(){
   openModal('Nova compra',`
     <div class="field"><label>Produto</label><select id="f-prod">${op}</select></div>
     <div class="row-2"><div class="field"><label>Qtd</label><input id="f-qtd" type="number" min="1" value="1"/></div>
-    <div class="field"><label>Valor total</label><input id="f-val" type="number" step="0.01" min="0"/></div></div>
+    <div class="field"><label>Valor total</label><input id="f-val" type="number" step="0.01" min="0" oninput="chkCompra()"/></div></div>
+    <div id="chk-compra" class="modal-msg" style="margin-bottom:.85rem">Disponível para novas compras: <strong>${money(disponivel())}</strong></div>
     <div class="field"><label>Fornecedor</label><input id="f-forn"/></div>
     <div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div>`,async()=>{
     const produtoId=val('f-prod'), qtd=Math.max(1,parseInt(val('f-qtd'))||1), valor=+val('f-val')||0, fornecedor=val('f-forn'), data=val('f-data')||today();
@@ -573,6 +582,51 @@ function modalPedido(id){
 async function setStatus(id,status){
   try{ await col('pedidos').doc(id).update({status,updatedAt:TS()}); const p=byId('pedidos',id); if(p) p.status=status; go('pedidos'); toast('Status atualizado'); }
   catch(ex){ showNotice(mapErr(ex.code),'error'); }
+}
+
+/* ---------- Reinvestimento ---------- */
+// Dinheiro efetivamente recebido: venda à vista = valor; parcelada = só parcelas pagas
+const recebidoVenda=v=>parcelasDe(v).length?parcelasDe(v).filter(p=>p.pago).reduce((s,p)=>s+Number(p.valor||0),0):Number(v.valor||0);
+// Disponível = recebido nas vendas − compras já feitas − gastos
+function disponivel(){ return DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0)-total(DATA.compras)-total(DATA.gastos); }
+let RANGE={tipo:'mes',de:'',ate:''};
+function rangeDates(){
+  const t=today(); let de=t, ate=t;
+  if(RANGE.tipo==='semana'){ const wd=(new Date(t+'T12:00:00').getDay()+6)%7; de=addDays(t,-wd); }
+  else if(RANGE.tipo==='mes') de=t.slice(0,8)+'01';
+  else if(RANGE.tipo==='tudo'){ de='0000-01-01'; ate='9999-12-31'; }
+  else if(RANGE.tipo==='custom'){ de=RANGE.de||'0000-01-01'; ate=RANGE.ate||'9999-12-31'; }
+  return [de,ate];
+}
+function setRange(t){ RANGE.tipo=t; go('reinvest'); }
+function renderReinvest(){
+  const [de,ate]=rangeDates(), inR=l=>l.filter(x=>(x.data||'')>=de&&(x.data||'')<=ate);
+  const vs=inR(DATA.vendas).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+  const vend=total(vs), custo=vs.reduce((s,v)=>s+custoVenda(v),0), gas=total(inR(DATA.gastos)), comp=total(inR(DATA.compras));
+  const rec=DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0), ct=total(DATA.compras), gt=total(DATA.gastos), disp=rec-ct-gt, pend=DATA.vendas.reduce((s,v)=>s+aReceber(v),0);
+  const tabs=[['dia','Hoje'],['semana','Semana'],['mes','Mês'],['tudo','Tudo'],['custom','Personalizado']];
+  const k=(l,v,s)=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${money(v)}</div>${s?`<div class="kpi-sub">${s}</div>`:''}</div>`;
+  return `<div class="hero ${disp<0?'neg':''}"><div class="hero-label">💵 Disponível para novas compras agora</div>
+    <div class="hero-value">${money(disp)}</div>
+    <div class="hero-eq">Recebido nas vendas ${money(rec)} − Compras ${money(ct)} − Gastos ${money(gt)}</div>
+    ${pend>0?`<div class="hero-eq">Ainda a receber em parcelas: ${money(pend)} (não incluído)</div>`:''}
+    ${disp<0?'<div class="hero-eq">Saldo negativo: compras e gastos superam o que já foi recebido nas vendas.</div>':''}</div>
+  <div class="toolbar"><div style="display:flex;gap:.4rem;flex-wrap:wrap">${tabs.map(([t,l])=>`<button class="btn btn-sm ${RANGE.tipo===t?'btn-primary':'btn-outline'}" onclick="setRange('${t}')">${l}</button>`).join('')}</div>
+    ${RANGE.tipo==='custom'?`<div style="display:flex;gap:.4rem;align-items:center"><input class="search" type="date" style="width:auto" value="${RANGE.de}" onchange="RANGE.de=this.value;go('reinvest')"/> até <input class="search" type="date" style="width:auto" value="${RANGE.ate}" onchange="RANGE.ate=this.value;go('reinvest')"/></div>`:''}</div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+    ${k('💰 Total vendido',vend,vs.length+' venda(s) no período')}${k('📦 Capital nas peças vendidas',custo,'Custo das joias vendidas')}
+    ${k('📈 Lucro bruto',vend-custo,'Vendido − custo')}${k('🧾 Gastos',gas)}${k('🛒 Compras',comp)}</div>
+  <div class="card"><div class="card-header"><h3>Vendas do período</h3></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Vendido</th><th>Custo</th><th>Lucro</th></tr></thead><tbody>
+  ${vs.map(v=>{const c=custoVenda(v),l=Number(v.valor||0)-c;return `<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(v.valor)}</td><td>${money(c)}</td><td><strong style="color:${l<0?'var(--danger)':'var(--success)'}">${money(l)}</strong></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Nenhuma venda no período</td></tr>'}
+  </tbody></table></div></div>`;
+}
+// Aviso ao registrar compra: compara com o valor disponível
+function chkCompra(){
+  const box=document.getElementById('chk-compra'); if(!box) return;
+  const v=+val('f-val')||0, d=disponivel();
+  if(!v){ box.style.color=''; box.innerHTML=`Disponível para novas compras: <strong>${money(d)}</strong>`; return; }
+  const sobra=d-v; box.style.color=sobra>=0?'var(--success)':'var(--danger)';
+  box.innerHTML=sobra>=0?`✅ Compra dentro do valor disponível (${money(d)}).<br>Saldo após a compra: <strong>${money(sobra)}</strong>`:`⚠️ Compra acima do valor disponível (${money(d)}).<br>Faltam <strong>${money(-sobra)}</strong> para realizar a compra.`;
 }
 
 /* ---------- Gastos ---------- */
