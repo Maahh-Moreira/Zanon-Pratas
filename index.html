@@ -157,6 +157,7 @@ td a{color:var(--blue-accent);text-decoration:none}
       <button class="nav-item active" data-page="dashboard" onclick="go('dashboard')"><span class="ico">◈</span><span>Dashboard</span></button>
       <button class="nav-item" data-page="produtos" onclick="go('produtos')"><span class="ico">◆</span><span>Produtos</span></button>
       <button class="nav-item" data-page="vendas" onclick="go('vendas')"><span class="ico">▲</span><span>Vendas</span></button>
+      <button class="nav-item" data-page="pedidos" onclick="go('pedidos')"><span class="ico">❖</span><span>Pedidos</span></button>
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
       <button class="nav-item" data-page="compras" onclick="go('compras')"><span class="ico">◇</span><span>Compras</span></button>
       <button class="nav-item" data-page="gastos" onclick="go('gastos')"><span class="ico">▣</span><span>Gastos</span></button>
@@ -190,9 +191,9 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
-const NAMES = ['produtos','clientes','vendas','compras','gastos'];
+const NAMES = ['produtos','clientes','vendas','compras','gastos','pedidos'];
 let USER = null, PAGE = 'dashboard';
-let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[] };
+let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[], pedidos:[] };
 
 const col = n => db.collection('users').doc(USER.uid).collection(n);
 const money = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -254,7 +255,7 @@ async function resetPass(){
   catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
 }
 function confirmLogout(){ openModal('Sair da conta','<p class="modal-msg">Tem certeza que deseja sair?</p>',async()=>{await auth.signOut();return true;},{saveLabel:'Sair',danger:true,silent:true,noReload:true}); }
-function logoutUI(){ USER=null; DATA={produtos:[],clientes:[],vendas:[],compras:[],gastos:[]}; document.getElementById('app').classList.add('hidden'); document.getElementById('auth').classList.remove('hidden'); showLogin(); document.getElementById('login-pass').value=''; }
+function logoutUI(){ USER=null; DATA={produtos:[],clientes:[],vendas:[],compras:[],gastos:[],pedidos:[]}; document.getElementById('app').classList.add('hidden'); document.getElementById('auth').classList.remove('hidden'); showLogin(); document.getElementById('login-pass').value=''; }
 
 async function loadAll(){
   const res=await Promise.all(NAMES.map(async n=>{
@@ -295,9 +296,9 @@ function openModal(title, body, onSave, opts={}){
 function go(page){
   PAGE=page;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',compras:'Compras / Estoque',gastos:'Gastos'};
+  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',compras:'Compras / Estoque',gastos:'Gastos',pedidos:'Pedidos'};
   document.getElementById('page-title').textContent=titles[page];
-  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,compras:renderCompras,gastos:renderGastos};
+  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,compras:renderCompras,gastos:renderGastos,pedidos:renderPedidos};
   document.getElementById('content').innerHTML=r[page]();
 }
 
@@ -326,7 +327,7 @@ function renderDashboard(){
   return `<div class="kpi-grid">
     <div class="kpi"><div class="kpi-label">Vendas</div><div class="kpi-value">${money(vend)}</div><div class="kpi-sub">${DATA.vendas.length} registro(s) · a receber ${money(DATA.vendas.reduce((s,v)=>s+aReceber(v),0))}</div></div>
     <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${DATA.produtos.length}</div><div class="kpi-sub ${nb?'bad':'good'}">${nb} estoque baixo</div></div>
-    <div class="kpi"><div class="kpi-label">Clientes</div><div class="kpi-value">${DATA.clientes.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Clientes</div><div class="kpi-value">${DATA.clientes.length}</div><div class="kpi-sub">${DATA.pedidos.filter(aberto).length} pedido(s) em aberto</div></div>
     <div class="kpi"><div class="kpi-label">Lucro estimado</div><div class="kpi-value">${money(lucro)}</div><div class="kpi-sub">Vendas − custo das peças − gastos</div></div></div>
   <div class="card"><div class="card-header"><h3>Últimas vendas</h3><button class="btn btn-outline btn-sm" onclick="go('vendas')">Ver todas</button></div>
   <div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Valor</th></tr></thead><tbody>
@@ -369,9 +370,9 @@ function delProduto(id){
 /* ---------- Vendas ---------- */
 function renderVendas(){
   return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'vendas-table')"/><button class="btn btn-primary" onclick="modalVenda()">+ Nova venda</button></div>
-  <div class="card"><div class="table-wrap"><table id="vendas-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Pagamento</th><th></th></tr></thead><tbody>
-  ${DATA.vendas.map(v=>`<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${v.qtd}</td><td>${money(v.valor)}${v.desconto>0?`<div class="meta">desc. ${money(v.desconto)}</div>`:''}</td><td>${pagtoLabel(v)}</td>
-  <td>${parcelasDe(v).length?`<button class="btn btn-outline btn-sm" onclick="modalParcelas('${v.id}')">Parcelas</button> `:''}<button class="btn btn-danger btn-sm" onclick="delVenda('${v.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Nenhuma venda</td></tr>'}
+  <div class="card"><div class="table-wrap"><table id="vendas-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Desconto</th><th>Valor final</th><th>Pagamento</th><th></th></tr></thead><tbody>
+  ${DATA.vendas.map(v=>`<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${v.qtd}</td><td>${v.desconto>0?`<span class="badge warn">− ${money(v.desconto)}</span>`:'—'}</td><td><strong>${money(v.valor)}</strong></td><td>${pagtoLabel(v)}</td>
+  <td>${parcelasDe(v).length?`<button class="btn btn-outline btn-sm" onclick="modalParcelas('${v.id}')">Parcelas</button> `:''}<button class="btn btn-danger btn-sm" onclick="delVenda('${v.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="8" class="empty">Nenhuma venda</td></tr>'}
   </tbody></table></div></div>`;
 }
 function modalVenda(){
@@ -528,6 +529,50 @@ function delCompra(id){
     });
     return true;
   },{saveLabel:'Excluir',danger:true,okMsg:'Compra excluída'});
+}
+
+/* ---------- Pedidos ---------- */
+const STATUS=['Pendente','Em produção','Pronto','Entregue','Cancelado'];
+const aberto=p=>!['Entregue','Cancelado'].includes(p.status);
+function statusBadge(p){
+  const atraso=aberto(p)&&p.prazo&&p.prazo<today();
+  const cls=atraso?'':(p.status==='Entregue'||p.status==='Pronto')?'ok':p.status==='Cancelado'?'':'warn';
+  return `<span class="badge ${cls}">${esc(p.status)}${atraso?' · atrasado':''}</span>`;
+}
+function renderPedidos(){
+  const lista=[...DATA.pedidos].sort((a,b)=>(aberto(b)-aberto(a))||String(a.prazo||'9').localeCompare(String(b.prazo||'9')));
+  return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'ped-table')"/><button class="btn btn-primary" onclick="modalPedido()">+ Novo pedido</button></div>
+  <div class="card"><div class="table-wrap"><table id="ped-table"><thead><tr><th>Prazo</th><th>Cliente</th><th>Pedido</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>
+  ${lista.map(p=>`<tr><td>${fmtDate(p.prazo)}</td><td>${esc(nomeCli(p))}</td>
+  <td>${esc(p.desc)}${p.obs?`<div class="meta">${esc(p.obs)}</div>`:''}</td><td>${money(p.valor)}</td>
+  <td>${statusBadge(p)}<br><select style="margin-top:.3rem;height:28px;border:1px solid var(--border);border-radius:7px;background:var(--surface-2);color:var(--ink)" onchange="setStatus('${p.id}',this.value)">${STATUS.map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></td>
+  <td><button class="btn btn-outline btn-sm" onclick="modalPedido('${p.id}')">Editar</button> <button class="btn btn-danger btn-sm" onclick="delDoc('pedidos','${p.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Nenhum pedido</td></tr>'}
+  </tbody></table></div></div>`;
+}
+function modalPedido(id){
+  const p=byId('pedidos',id)||{};
+  if(!DATA.clientes.length){ showNotice('Cadastre pelo menos 1 cliente.','info'); return; }
+  const oc=DATA.clientes.map(c=>`<option value="${c.id}" ${c.id===p.clienteId?'selected':''}>${esc(c.nome)}</option>`).join('');
+  const os=STATUS.map(s=>`<option ${s===(p.status||'Pendente')?'selected':''}>${s}</option>`).join('');
+  openModal(p.id?'Editar pedido':'Novo pedido',`
+    <div class="field"><label>Cliente</label><select id="f-cli">${oc}</select></div>
+    <div class="field"><label>Pedido (o que o cliente pediu)</label><input id="f-desc" value="${esc(p.desc||'')}" placeholder="Ex.: Anel de prata aro 18 com nome"/></div>
+    <div class="row-2"><div class="field"><label>Valor</label><input id="f-val" type="number" step="0.01" min="0" value="${p.valor??''}"/></div>
+    <div class="field"><label>Status</label><select id="f-st">${os}</select></div></div>
+    <div class="row-2"><div class="field"><label>Data do pedido</label><input id="f-data" type="date" value="${p.data||today()}"/></div>
+    <div class="field"><label>Prazo de entrega</label><input id="f-prazo" type="date" value="${p.prazo||''}"/></div></div>
+    <div class="field"><label>Observações</label><input id="f-obs" value="${esc(p.obs||'')}"/></div>`,async()=>{
+    const clienteId=val('f-cli'), desc=val('f-desc');
+    if(!clienteId||!desc){ modalError('Informe cliente e pedido.'); return false; }
+    const payload={clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',desc,valor:+val('f-val')||0,status:val('f-st')||'Pendente',data:val('f-data')||today(),prazo:val('f-prazo'),obs:val('f-obs'),updatedAt:TS()};
+    if(p.id) await col('pedidos').doc(p.id).set(payload,{merge:true});
+    else await col('pedidos').add({...payload,createdAt:TS()});
+    return true;
+  });
+}
+async function setStatus(id,status){
+  try{ await col('pedidos').doc(id).update({status,updatedAt:TS()}); const p=byId('pedidos',id); if(p) p.status=status; go('pedidos'); toast('Status atualizado'); }
+  catch(ex){ showNotice(mapErr(ex.code),'error'); }
 }
 
 /* ---------- Gastos ---------- */
