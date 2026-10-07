@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -8,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <style>
 :root{--bg:#f4f7fb;--surface:#fff;--surface-2:#f8fafc;--ink:#0f172a;--muted:#5b6b82;--border:#e2e8f0;--blue-deep:#0a1628;--blue-dark:#0f2744;--blue-mid:#163a5f;--blue-accent:#3b82f6;--blue-soft:#dbeafe;--blue-50:#eff6ff;--success:#059669;--danger:#dc2626;--shadow:0 1px 3px rgba(15,39,68,.06),0 8px 24px rgba(15,39,68,.04);--radius:12px;--sidebar:240px}
 html.dark{--bg:#0b1220;--surface:#111827;--surface-2:#0f172a;--ink:#e5eefb;--muted:#94a3b8;--border:#1e293b;--blue-deep:#060d18;--blue-dark:#0b1a2e;--blue-mid:#12263f;--blue-soft:#1e3a5f;--blue-50:#132337;--shadow:0 1px 3px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25)}
@@ -80,7 +82,7 @@ td a{color:var(--blue-accent);text-decoration:none}
 .search{height:38px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--ink);width:min(260px,100%);outline:none}
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1rem}
 .product-card{overflow:hidden;display:flex;flex-direction:column}
-.product-img{height:110px;background:linear-gradient(145deg,var(--blue-soft),var(--blue-50));display:grid;place-items:center;font-size:2rem}
+.product-img{height:150px;background:linear-gradient(145deg,var(--blue-soft),var(--blue-50));display:grid;place-items:center;font-size:2rem;overflow:hidden;cursor:pointer}.product-img img{width:100%;height:100%;object-fit:cover;display:block}.photo-preview{width:100%;height:180px;border:1px dashed var(--border);border-radius:10px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden;margin-top:.4rem}.photo-preview img{width:100%;height:100%;object-fit:contain}.photo-help{font-size:.7rem;color:var(--muted);margin-top:.3rem}
 .product-info{padding:.9rem 1rem .4rem;flex:1}
 .product-info h4{font-size:.88rem;margin-bottom:.25rem}
 .price{font-size:1rem;font-weight:700;color:var(--blue-dark)}html.dark .price{color:var(--blue-accent)}
@@ -195,6 +197,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+const storage = firebase.storage();
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','pedidos'];
@@ -345,7 +348,7 @@ function renderDashboard(){
 function renderProdutos(){
   return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div>
   <div class="product-grid" id="prod-grid">${DATA.produtos.map(p=>`<div class="product-card" data-q="${esc((p.nome+' '+(p.cat||'')).toLowerCase())}">
-    <div class="product-img">💎</div><div class="product-info"><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
+    <div class="product-img" onclick="verFotoProduto('${p.id}')">${p.fotoUrl?`<img src="${esc(p.fotoUrl)}" alt="${esc(p.nome)}"/>`:'💎'}</div><div class="product-info"><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
     <div class="meta">${esc(p.cat||'Geral')} · Est <strong>${p.estoque}</strong>${baixo(p)?' <span class="badge">baixo</span>':''} · Custo ${money(p.custo)}</div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">Editar</button>
     <button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto</div>'}</div>`;
@@ -353,6 +356,9 @@ function renderProdutos(){
 function modalProduto(id){
   const p=byId('produtos',id)||{};
   openModal(p.id?'Editar produto':'Novo produto',`
+    <div class="field"><label>Foto da joia</label><input id="f-foto" type="file" accept="image/*" onchange="previewFoto(this)"/>
+      <div class="photo-preview" id="photo-preview">${p.fotoUrl?`<img src="${esc(p.fotoUrl)}" alt="Foto atual"/>`:'<span class="modal-msg">Selecione uma foto da joia</span>'}</div>
+      <div class="photo-help">JPG, PNG ou WEBP. Prefira uma foto nítida e bem iluminada.</div></div>
     <div class="field"><label>Nome</label><input id="f-nome" value="${esc(p.nome||'')}"/></div>
     <div class="row-2"><div class="field"><label>Preço</label><input id="f-preco" type="number" step="0.01" min="0" value="${p.preco??''}"/></div>
     <div class="field"><label>Custo</label><input id="f-custo" type="number" step="0.01" min="0" value="${p.custo??''}"/></div></div>
@@ -361,11 +367,31 @@ function modalProduto(id){
     <div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div>`,async()=>{
     const nome=val('f-nome'), preco=+val('f-preco');
     if(!nome||!val('f-preco')||!(preco>=0)){ modalError('Informe nome e preço.'); return false; }
+    const file=document.getElementById('f-foto')?.files?.[0];
     const payload={nome,preco,custo:+val('f-custo')||0,estoque:+val('f-est')||0,min:val('f-min')===''?5:+val('f-min'),cat:val('f-cat')||'Geral',updatedAt:TS()};
-    if(p.id) await col('produtos').doc(p.id).set(payload,{merge:true});
-    else await col('produtos').add({...payload,createdAt:TS()});
+    let docRef=p.id?col('produtos').doc(p.id):col('produtos').doc();
+    if(file){
+      if(!file.type.startsWith('image/')){ modalError('Selecione uma imagem válida.'); return false; }
+      if(file.size>5*1024*1024){ modalError('A foto deve ter no máximo 5 MB.'); return false; }
+      const path=`users/${USER.uid}/produtos/${docRef.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+      const ref=storage.ref(path);
+      await ref.put(file);
+      payload.fotoUrl=await ref.getDownloadURL();
+      payload.fotoPath=path;
+    }
+    if(p.id) await docRef.set(payload,{merge:true});
+    else await docRef.set({...payload,createdAt:TS()});
     return true;
   });
+}
+function previewFoto(input){
+  const file=input?.files?.[0], box=document.getElementById('photo-preview'); if(!file||!box) return;
+  if(!file.type.startsWith('image/')){ box.innerHTML='<span class="modal-msg">Arquivo inválido.</span>'; return; }
+  const url=URL.createObjectURL(file); box.innerHTML=`<img src="${url}" alt="Prévia da joia"/>`;
+}
+function verFotoProduto(id){
+  const p=byId('produtos',id); if(!p?.fotoUrl) return;
+  openModal(p.nome,`<div style="display:grid;place-items:center"><img src="${esc(p.fotoUrl)}" alt="${esc(p.nome)}" style="max-width:100%;max-height:65vh;border-radius:10px;object-fit:contain"/></div>`,async()=>true,{saveLabel:'Fechar',silent:true,noReload:true});
 }
 function delProduto(id){
   const usado=DATA.vendas.some(v=>v.produtoId===id)||DATA.compras.some(c=>c.produtoId===id);
@@ -384,10 +410,11 @@ function renderVendas(){
 function modalVenda(){
   if(!DATA.clientes.length||!DATA.produtos.length){ showNotice('Cadastre pelo menos 1 cliente e 1 produto.','info'); return; }
   const oc=DATA.clientes.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
-  const op=DATA.produtos.map(p=>`<option value="${p.id}" data-preco="${p.preco}">${esc(p.nome)} (est ${p.estoque})</option>`).join('');
+  const op=DATA.produtos.map(p=>`<option value="${p.id}" data-preco="${p.preco}" data-foto="${esc(p.fotoUrl||'')}">${esc(p.nome)} (est ${p.estoque})</option>`).join('');
   openModal('Nova venda',`
     <div class="field"><label>Cliente</label><select id="f-cli">${oc}</select></div>
     <div class="field"><label>Produto</label><select id="f-prod" onchange="updVenda()">${op}</select></div>
+    <div class="photo-preview" id="venda-photo-preview" style="height:120px;margin-bottom:.85rem"><span class="modal-msg">Sem foto</span></div>
     <div class="row-2"><div class="field"><label>Qtd</label><input id="f-qtd" type="number" min="1" value="1" oninput="updVenda()"/></div>
     <div class="field"><label>Subtotal</label><input id="f-sub" type="number" step="0.01" readonly/></div></div>
     <div class="row-2"><div class="field"><label>Desconto / acréscimo</label><div style="display:flex;gap:.4rem"><input id="f-dsc" type="number" step="0.01" min="0" placeholder="0" oninput="updVenda()"/><select id="f-dtipo" onchange="updVenda()" style="width:96px;flex:none"><option value="-r">Desc. R$</option><option value="-p">Desc. %</option><option value="+r">Acrésc. R$</option><option value="+p">Acrésc. %</option></select></div></div>
@@ -421,7 +448,9 @@ function modalVenda(){
 }
 function updVenda(src){
   const sel=document.getElementById('f-prod'); if(!sel) return;
-  const pr=+(sel.options[sel.selectedIndex]?.dataset.preco||0), q=+(val('f-qtd')||1);
+  const opt=sel.options[sel.selectedIndex], foto=opt?.dataset.foto||'', preview=document.getElementById('venda-photo-preview');
+  if(preview) preview.innerHTML=foto?`<img src="${esc(foto)}" alt="Foto da joia"/>`:'<span class="modal-msg">Sem foto</span>';
+  const pr=+(opt?.dataset.preco||0), q=+(val('f-qtd')||1);
   const sub=pr*q;
   document.getElementById('f-sub').value=sub.toFixed(2);
   if(src==='final'){ document.getElementById('f-dsc').value=''; return; }
