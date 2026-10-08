@@ -1,3 +1,6 @@
+Aqui está o código completo e atualizado, com a nova aba **Reinvestimento**. Salve como `index.html`.
+
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -309,8 +312,7 @@ function go(page){
 }
 
 const total=(list,key='valor')=>(list||[]).reduce((s,x)=>s+Number(x[key]||0),0);
-const minEst=p=>Number(p.min??5);
-const baixo=p=>Number(p.estoque)<=minEst(p);
+
 // Nomes: usa o nome salvo na venda; se o cadastro ainda existir, usa o atual
 const nomeCli=v=>byId('clientes',v.clienteId)?.nome||v.clienteNome||'—';
 const nomeProd=(o)=>byId('produtos',o.produtoId)?.nome||o.produtoNome||'—';
@@ -329,10 +331,10 @@ function pagtoLabel(v){
 
 function renderDashboard(){
   const vend=total(DATA.vendas), cmv=DATA.vendas.reduce((s,v)=>s+custoVenda(v),0), gas=total(DATA.gastos);
-  const lucro=vend-cmv-gas, nb=DATA.produtos.filter(baixo).length;
+  const lucro=vend-cmv-gas;
   return `<div class="kpi-grid">
     <div class="kpi"><div class="kpi-label">Vendas</div><div class="kpi-value">${money(vend)}</div><div class="kpi-sub">${DATA.vendas.length} registro(s) · a receber ${money(DATA.vendas.reduce((s,v)=>s+aReceber(v),0))}</div></div>
-    <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${DATA.produtos.length}</div><div class="kpi-sub ${nb?'bad':'good'}">${nb} estoque baixo</div></div>
+    <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${DATA.produtos.length}</div></div>
     <div class="kpi"><div class="kpi-label">Clientes</div><div class="kpi-value">${DATA.clientes.length}</div><div class="kpi-sub">${DATA.pedidos.filter(aberto).length} pedido(s) em aberto</div></div>
     <div class="kpi"><div class="kpi-label">Lucro estimado</div><div class="kpi-value">${money(lucro)}</div><div class="kpi-sub">Vendas − custo das peças − gastos</div></div></div>
   <div class="card"><div class="card-header"><h3>Últimas vendas</h3><button class="btn btn-outline btn-sm" onclick="go('vendas')">Ver todas</button></div>
@@ -346,7 +348,7 @@ function renderProdutos(){
   return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div>
   <div class="product-grid" id="prod-grid">${DATA.produtos.map(p=>`<div class="product-card" data-q="${esc((p.nome+' '+(p.cat||'')).toLowerCase())}">
     <div class="product-img">💎</div><div class="product-info"><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
-    <div class="meta">${esc(p.cat||'Geral')} · Est <strong>${p.estoque}</strong>${baixo(p)?' <span class="badge">baixo</span>':''} · Custo ${money(p.custo)}</div></div>
+    <div class="meta">${esc(p.cat||'Geral')} · Estoque <strong>${p.estoque}</strong> · Custo ${money(p.custo)}</div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">Editar</button>
     <button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto</div>'}</div>`;
 }
@@ -357,11 +359,11 @@ function modalProduto(id){
     <div class="row-2"><div class="field"><label>Preço</label><input id="f-preco" type="number" step="0.01" min="0" value="${p.preco??''}"/></div>
     <div class="field"><label>Custo</label><input id="f-custo" type="number" step="0.01" min="0" value="${p.custo??''}"/></div></div>
     <div class="row-2"><div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>
-    <div class="field"><label>Estoque mínimo</label><input id="f-min" type="number" min="0" value="${p.min??5}"/></div></div>
+    </div>
     <div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div>`,async()=>{
     const nome=val('f-nome'), preco=+val('f-preco');
     if(!nome||!val('f-preco')||!(preco>=0)){ modalError('Informe nome e preço.'); return false; }
-    const payload={nome,preco,custo:+val('f-custo')||0,estoque:+val('f-est')||0,min:val('f-min')===''?5:+val('f-min'),cat:val('f-cat')||'Geral',updatedAt:TS()};
+    const payload={nome,preco,custo:+val('f-custo')||0,estoque:+val('f-est')||0,cat:val('f-cat')||'Geral',updatedAt:TS()};
     if(p.id) await col('produtos').doc(p.id).set(payload,{merge:true});
     else await col('produtos').add({...payload,createdAt:TS()});
     return true;
@@ -499,7 +501,7 @@ function renderCompras(){
   </tbody></table></div></div>
   <div class="card"><div class="card-header"><h3>Estoque atual</h3></div><div class="table-wrap"><table>
   <thead><tr><th>Produto</th><th>Cat</th><th>Estoque</th><th>Custo</th><th>Preço</th></tr></thead><tbody>
-  ${DATA.produtos.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.cat||'')}</td><td>${baixo(p)?`<span class="badge">${p.estoque}</span>`:p.estoque}</td><td>${money(p.custo)}</td><td>${money(p.preco)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Sem produtos</td></tr>'}
+  ${DATA.produtos.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.cat||'')}</td><td>${p.estoque}</td><td>${money(p.custo)}</td><td>${money(p.preco)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Sem produtos</td></tr>'}
   </tbody></table></div></div>`;
 }
 function modalCompra(){
@@ -715,4 +717,4 @@ if(localStorage.getItem(THEME_KEY)==='dark'){ document.documentElement.classList
 
 ```
 
-
+Depois de colar, publique o arquivo de novo no seu hospedamento e atualize a página sem cache (Ctrl+Shift+R). Se algo não funcionar, me conta o que aparece que eu ajusto.
