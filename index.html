@@ -81,6 +81,11 @@ td a{color:var(--blue-accent);text-decoration:none}
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1rem}
 .product-card{overflow:hidden;display:flex;flex-direction:column}
 .product-img{height:110px;background:linear-gradient(145deg,var(--blue-soft),var(--blue-50));display:grid;place-items:center;font-size:2rem}
+.product-img img{width:100%;height:100%;object-fit:cover;display:block}.product-img.has-photo{background:var(--surface-2)}
+.sales-items{display:flex;flex-direction:column;gap:.55rem;margin:.5rem 0 1rem}.sale-item{display:grid;grid-template-columns:minmax(0,1fr) 75px 100px 38px;gap:.45rem;align-items:end;padding:.65rem;border:1px solid var(--border);border-radius:9px;background:var(--surface-2)}
+.sale-item .field{margin:0}.sale-total{font-weight:700;font-size:1rem}.chart-bars{display:flex;align-items:flex-end;gap:.55rem;height:190px;padding:1rem}.chart-col{flex:1;min-width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:.3rem}.chart-bar{width:100%;max-width:48px;border-radius:7px 7px 2px 2px;background:var(--blue-accent);min-height:2px}.chart-label{font-size:.62rem;color:var(--muted);white-space:nowrap}.chart-value{font-size:.62rem;color:var(--muted);font-weight:600}.photo-preview{width:100%;height:130px;border:1px dashed var(--border);border-radius:10px;display:grid;place-items:center;overflow:hidden;background:var(--surface-2);margin-bottom:.7rem}.photo-preview img{width:100%;height:100%;object-fit:cover}.receipt-print{display:none}
+@media(max-width:620px){.sale-item{grid-template-columns:1fr 70px 95px 36px}.sale-item .field:first-child{grid-column:1/-1}.hero-value{font-size:2.3rem}.chart-bars{gap:.25rem;padding:.7rem}.chart-label{font-size:.55rem}}
+@media print{body>*{display:none!important}.receipt-print{display:block!important;padding:24px;font-family:Arial,sans-serif;color:#111}.receipt-print h1{text-align:center;font-size:22px;margin-bottom:4px}.receipt-print .center{text-align:center}.receipt-print table{margin-top:16px}.receipt-print td,.receipt-print th{padding:6px;border-bottom:1px solid #ddd;background:#fff;color:#111}.receipt-print .total{font-size:18px;font-weight:bold;text-align:right;margin-top:12px}}
 .product-info{padding:.9rem 1rem .4rem;flex:1}
 .product-info h4{font-size:.88rem;margin-bottom:.25rem}
 .price{font-size:1rem;font-weight:700;color:var(--blue-dark)}html.dark .price{color:var(--blue-accent)}
@@ -311,11 +316,12 @@ function go(page){
 
 const total=(list,key='valor')=>(list||[]).reduce((s,x)=>s+Number(x[key]||0),0);
 
-// Nomes: usa o nome salvo na venda; se o cadastro ainda existir, usa o atual
+// Nomes: usa o nome salvo na venda; vendas novas podem ter vários itens.
 const nomeCli=v=>byId('clientes',v.clienteId)?.nome||v.clienteNome||'—';
-const nomeProd=(o)=>byId('produtos',o.produtoId)?.nome||o.produtoNome||'—';
-// Custo da venda: custo gravado no momento da venda (vendas antigas usam o custo atual)
-const custoVenda=v=>Number(v.custo ?? byId('produtos',v.produtoId)?.custo ?? 0)*Number(v.qtd||0);
+const itensVenda=v=>Array.isArray(v.itens)&&v.itens.length?v.itens:[{produtoId:v.produtoId,produtoNome:v.produtoNome,qtd:Number(v.qtd||0),preco:Number(v.precoUnitario??v.valor??0),custo:Number(v.custo||0)}];
+const nomeProd=o=>{ const it=itensVenda(o); return it.length>1?it.map(x=>x.produtoNome||byId('produtos',x.produtoId)?.nome||'—').join(', '):(byId('produtos',o.produtoId)?.nome||o.produtoNome||it[0]?.produtoNome||'—'); };
+// Custo da venda: soma o custo gravado no momento da venda.
+const custoVenda=v=>itensVenda(v).reduce((s,it)=>s+Number(it.custo??byId('produtos',it.produtoId)?.custo??0)*Number(it.qtd||0),0);
 
 const parcelasDe=v=>v.parcelas||[];
 const aReceber=v=>parcelasDe(v).filter(p=>!p.pago).reduce((s,p)=>s+Number(p.valor||0),0);
@@ -364,32 +370,40 @@ function renderDashboard(){
   </tbody></table></div></div>`;
 }
 
+function renderSalesChart(){ const now=new Date(today()+'T12:00:00'); const arr=[]; for(let i=5;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1,12); const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; const totalv=DATA.vendas.filter(v=>String(v.data||'').slice(0,7)===key).reduce((s,v)=>s+Number(v.valor||0),0); arr.push({label:d.toLocaleDateString('pt-BR',{month:'short'}).replace('.',''),v:totalv}); } const max=Math.max(1,...arr.map(x=>x.v)); return `<div class="chart-bars">${arr.map(x=>`<div class="chart-col"><div class="chart-value">${x.v?money(x.v).replace('R$','R$'):''}</div><div class="chart-bar" style="height:${Math.max(2,x.v/max*125)}px"></div><div class="chart-label">${x.label}</div></div>`).join('')}</div>`; }
+function exportarBackup(){ const data={versao:2,exportadoEm:new Date().toISOString(),colecoes:{produtos:DATA.produtos,clientes:DATA.clientes,vendas:DATA.vendas,compras:DATA.compras,gastos:DATA.gastos,pedidos:DATA.pedidos,reinvestimentos:DATA.reinvestimentos}}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`zm-pratas-backup-${today()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast('Backup baixado'); }
+function importarBackup(){ const input=document.createElement('input'); input.type='file'; input.accept='.json,application/json'; input.onchange=async()=>{ const f=input.files?.[0]; if(!f)return; try{ const data=JSON.parse(await f.text()); const c=data.colecoes||data; const names=NAMES.filter(n=>Array.isArray(c[n])); if(!names.length)throw Error('Arquivo sem dados reconhecidos.'); openModal('Restaurar backup',`<p class="modal-msg">Serão importados <strong>${names.map(n=>`${n}: ${c[n].length}`).join(' · ')}</strong>.</p><p class="modal-msg" style="margin-top:.5rem">Registros existentes não serão apagados; os registros do backup serão adicionados com os mesmos IDs quando possível.</p>`,async()=>{ for(const n of names){ for(const item of c[n]){ if(!item.id)continue; const copy={...item}; delete copy.id; await col(n).doc(item.id).set(copy,{merge:true}); } } await loadAll(); go(PAGE); return true; },{okMsg:'Backup restaurado'}); }catch(e){showNotice('Não foi possível ler o backup.','error');} }; input.click(); }
+
 /* ---------- Produtos ---------- */
 function renderProdutos(){
-  return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div>
-  <div class="product-grid" id="prod-grid">${DATA.produtos.map(p=>`<div class="product-card" data-q="${esc((p.nome+' '+(p.cat||'')).toLowerCase())}">
-    <div class="product-img">💎</div><div class="product-info"><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
-    <div class="meta">${esc(p.cat||'Geral')} · Estoque <strong>${p.estoque}</strong> · Custo ${money(p.custo)}</div></div>
-    <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">Editar</button>
-    <button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto</div>'}</div>`;
+  return `<div class="toolbar"><input class="search" placeholder="Buscar por nome, SKU ou categoria..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div>
+  <div class="product-grid" id="prod-grid">${DATA.produtos.map(p=>`<div class="product-card" data-q="${esc((p.nome+' '+(p.sku||'')+' '+(p.cat||'')).toLowerCase())}">
+    <div class="product-img ${p.foto?'has-photo':''}">${p.foto?`<img src="${p.foto}" alt="${esc(p.nome)}"/>`:'💎'}</div><div class="product-info"><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
+    <div class="meta">${esc(p.cat||'Geral')} · ${p.sku?`SKU ${esc(p.sku)} · `:''}Estoque <strong>${p.estoque}</strong> · Custo ${money(p.custo)}</div></div>
+    <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto</div>'}</div>`;
 }
 function modalProduto(id){
   const p=byId('produtos',id)||{};
   openModal(p.id?'Editar produto':'Novo produto',`
+    <div id="foto-preview" class="photo-preview">${p.foto?`<img src="${p.foto}"/>`:'📷 Adicionar foto da joia'}</div>
+    <div class="field"><label>Foto da joia</label><input id="f-foto" type="file" accept="image/*" onchange="previewProdutoFoto(this)"/></div>
     <div class="field"><label>Nome</label><input id="f-nome" value="${esc(p.nome||'')}"/></div>
+    <div class="row-2"><div class="field"><label>SKU / Código</label><input id="f-sku" value="${esc(p.sku||'')}" placeholder="Ex.: AN001"/></div><div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div></div>
     <div class="row-2"><div class="field"><label>Preço</label><input id="f-preco" type="number" step="0.01" min="0" value="${p.preco??''}"/></div>
     <div class="field"><label>Custo</label><input id="f-custo" type="number" step="0.01" min="0" value="${p.custo??''}"/></div></div>
-    <div class="row-2"><div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>
-    </div>
-    <div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div>`,async()=>{
+    <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>`,async()=>{
     const nome=val('f-nome'), preco=+val('f-preco');
     if(!nome||!val('f-preco')||!(preco>=0)){ modalError('Informe nome e preço.'); return false; }
-    const payload={nome,preco,custo:+val('f-custo')||0,estoque:+val('f-est')||0,cat:val('f-cat')||'Geral',updatedAt:TS()};
-    if(p.id) await col('produtos').doc(p.id).set(payload,{merge:true});
-    else await col('produtos').add({...payload,createdAt:TS()});
+    const foto=window.__produtoFoto??p.foto??'';
+    const payload={nome,sku:val('f-sku'),preco,custo:+val('f-custo')||0,estoque:+val('f-est')||0,cat:val('f-cat')||'Geral',foto,updatedAt:TS()};
+    window.__produtoFoto=null;
+    if(p.id) await col('produtos').doc(p.id).set(payload,{merge:true}); else await col('produtos').add({...payload,createdAt:TS()});
     return true;
   });
+  window.__produtoFoto=null;
 }
+function previewProdutoFoto(input){ const f=input.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=e=>{ const img=new Image(); img.onload=()=>{ const max=900, scale=Math.min(1,max/Math.max(img.width,img.height)), c=document.createElement('canvas'); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale); c.getContext('2d').drawImage(img,0,0,c.width,c.height); window.__produtoFoto=c.toDataURL('image/jpeg',.78); document.getElementById('foto-preview').innerHTML=`<img src="${window.__produtoFoto}"/>`; }; img.src=e.target.result; }; r.readAsDataURL(f); }
+
 function delProduto(id){
   const usado=DATA.vendas.some(v=>v.produtoId===id)||DATA.compras.some(c=>c.produtoId===id);
   if(usado){ showNotice('Este produto tem vendas ou compras registradas e não pode ser excluído. Zere o estoque para tirá-lo de uso.','info'); return; }
@@ -398,85 +412,55 @@ function delProduto(id){
 
 /* ---------- Vendas ---------- */
 function renderVendas(){
-  return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'vendas-table')"/><button class="btn btn-primary" onclick="modalVenda()">+ Nova venda</button></div>
-  <div class="card"><div class="table-wrap"><table id="vendas-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Ajuste</th><th>Valor final</th><th>Pagamento</th><th></th></tr></thead><tbody>
-  ${DATA.vendas.map(v=>`<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${v.qtd}</td><td>${v.desconto>0?`<span class="badge warn">− ${money(v.desconto)}</span>`:v.acrescimo>0?`<span class="badge ok">+ ${money(v.acrescimo)}</span>`:'—'}</td><td><strong>${money(v.valor)}</strong></td><td>${pagtoLabel(v)}</td>
-  <td>${parcelasDe(v).length?`<button class="btn btn-outline btn-sm" onclick="modalParcelas('${v.id}')">Parcelas</button> `:''}<button class="btn btn-danger btn-sm" onclick="delVenda('${v.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="8" class="empty">Nenhuma venda</td></tr>'}
+  return `<div class="toolbar"><input class="search" placeholder="Buscar cliente, produto ou SKU..." oninput="filterTable(this,'vendas-table')"/><div style="display:flex;gap:.5rem"><button class="btn btn-outline" onclick="exportarBackup()">Backup</button><button class="btn btn-primary" onclick="modalVenda()">+ Nova venda</button></div></div>
+  <div class="card"><div class="table-wrap"><table id="vendas-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produtos</th><th>Total</th><th>Pagamento</th><th>Recebido</th><th></th></tr></thead><tbody>
+  ${DATA.vendas.map(v=>`<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}${itensVenda(v).length>1?`<div class="meta">${itensVenda(v).length} itens</div>`:''}</td><td><strong>${money(v.valor)}</strong></td><td>${pagtoLabel(v)}</td><td>${money(recebidoVenda(v))}</td>
+  <td>${parcelasDe(v).length?`<button class="btn btn-outline btn-sm" onclick="modalParcelas('${v.id}')">Parcelas</button> `:''}<button class="btn btn-outline btn-sm" onclick="imprimirVenda('${v.id}')">🖨️</button> <button class="btn btn-danger btn-sm" onclick="delVenda('${v.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Nenhuma venda</td></tr>'}
   </tbody></table></div></div>`;
 }
 function modalVenda(){
   if(!DATA.clientes.length||!DATA.produtos.length){ showNotice('Cadastre pelo menos 1 cliente e 1 produto.','info'); return; }
   const oc=DATA.clientes.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
-  const op=DATA.produtos.map(p=>`<option value="${p.id}" data-preco="${p.preco}">${esc(p.nome)} (est ${p.estoque})</option>`).join('');
   openModal('Nova venda',`
     <div class="field"><label>Cliente</label><select id="f-cli">${oc}</select></div>
-    <div class="field"><label>Produto</label><select id="f-prod" onchange="updVenda()">${op}</select></div>
-    <div class="row-2"><div class="field"><label>Qtd</label><input id="f-qtd" type="number" min="1" value="1" oninput="updVenda()"/></div>
-    <div class="field"><label>Subtotal</label><input id="f-sub" type="number" step="0.01" readonly/></div></div>
-    <div class="row-2"><div class="field"><label>Desconto / acréscimo</label><div style="display:flex;gap:.4rem"><input id="f-dsc" type="number" step="0.01" min="0" placeholder="0" oninput="updVenda()"/><select id="f-dtipo" onchange="updVenda()" style="width:96px;flex:none"><option value="-r">Desc. R$</option><option value="-p">Desc. %</option><option value="+r">Acrésc. R$</option><option value="+p">Acrésc. %</option></select></div></div>
-    <div class="field"><label>Valor final (pode editar)</label><input id="f-val" type="number" step="0.01" min="0" oninput="updVenda('final')"/></div></div>
-    <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div>
-    <div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option>${[2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">${n} vezes</option>`).join('')}</select></div></div>
-    <div id="box-2x" style="display:none"><div class="row-2"><div class="field"><label>Vencimento da 2ª parcela</label><input id="f-venc2" type="date" value="${addDays(today(),30)}"/></div>
-    <div class="field"><label>1ª parcela (entrada)</label><select id="f-pago1"><option value="1">Já paga</option><option value="0">Pendente</option></select></div></div>
-    <p class="modal-msg">O valor total é dividido em parcelas iguais, uma por mês a partir do vencimento da 2ª.</p></div>`,async()=>{
-    const clienteId=val('f-cli'), produtoId=val('f-prod'), qtd=Math.max(1,parseInt(val('f-qtd'))||1), valor=+val('f-val'), subtotal=+val('f-sub')||valor, data=val('f-data')||today();
-    let parcelas=null;
-    const n=+val('f-pag')||1;
-    if(n>1){
-      const vp=round2(valor/n), v2=val('f-venc2')||addMonths(data,1);
-      parcelas=Array.from({length:n},(_,i)=>({valor:i===n-1?round2(valor-vp*(n-1)):vp,venc:i===0?data:addMonths(v2,i-1),pago:i===0&&val('f-pago1')==='1'}));
-    }
-    if(!clienteId||!produtoId||!val('f-val')||!(valor>=0)){ modalError('Preencha os campos.'); return false; }
-    const pref=col('produtos').doc(produtoId);
+    <div class="field"><label>Itens da venda</label><div id="sale-items" class="sales-items"></div><button type="button" class="btn btn-outline btn-sm" onclick="addSaleItem()">+ Adicionar produto</button></div>
+    <div class="row-2"><div class="field"><label>Desconto / acréscimo</label><div style="display:flex;gap:.4rem"><input id="f-dsc" type="number" step="0.01" min="0" placeholder="0" oninput="calcSale()"/><select id="f-dtipo" onchange="calcSale()" style="width:96px;flex:none"><option value="-r">Desc. R$</option><option value="-p">Desc. %</option><option value="+r">Acrésc. R$</option><option value="+p">Acrésc. %</option></select></div></div><div class="field"><label>Total da venda</label><input id="f-val" type="number" step="0.01" min="0" readonly/></div></div>
+    <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div><div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option>${[2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">${n} vezes</option>`).join('')}</select></div></div>
+    <div id="box-2x" style="display:none"><div class="row-2"><div class="field"><label>Vencimento da 2ª parcela</label><input id="f-venc2" type="date" value="${addDays(today(),30)}"/></div><div class="field"><label>1ª parcela (entrada)</label><select id="f-pago1"><option value="1">Já paga</option><option value="0">Pendente</option></select></div></div><p class="modal-msg">As parcelas seguintes vencem mensalmente.</p></div>
+    <div class="row-2"><div class="field"><label>Forma de pagamento</label><select id="f-forma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select></div><div class="field"><label>Valor recebido / entrada</label><input id="f-recebido" type="number" step="0.01" min="0" value="0" oninput="calcTroco()"/></div></div>
+    <div id="troco-box" class="modal-msg">Troco: <strong>R$ 0,00</strong></div>`,async()=>{
+    const clienteId=val('f-cli'), data=val('f-data')||today(), valor=+val('f-val')||0, items=collectSaleItems();
+    if(!clienteId||!items.length||!(valor>=0)){ modalError('Informe cliente, produto e valores.'); return false; }
+    const n=+val('f-pag')||1; let parcelas=null;
+    if(n>1){ const vp=round2(valor/n), v2=val('f-venc2')||addMonths(data,1); parcelas=Array.from({length:n},(_,i)=>({valor:i===n-1?round2(valor-vp*(n-1)):vp,venc:i===0?data:addMonths(v2,i-1),pago:i===0&&val('f-pago1')==='1'})); }
+    const ids=items.map(x=>x.produtoId), pref=ids.map(id=>col('produtos').doc(id));
     await db.runTransaction(async t=>{
-      const snap=await t.get(pref);
-      if(!snap.exists) throw Object.assign(new Error(),{userMsg:'Produto não encontrado.'});
-      const pd=snap.data(), est=Number(pd.estoque||0);
-      if(est<qtd) throw Object.assign(new Error(),{userMsg:'Estoque insuficiente.'});
-      t.update(pref,{estoque:est-qtd});
-      // grava nomes e custo no momento da venda (histórico e lucro corretos)
-      t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',produtoId,produtoNome:pd.nome,custo:Number(pd.custo||0),qtd,subtotal,desconto:Math.max(0,round2(subtotal-valor)),acrescimo:Math.max(0,round2(valor-subtotal)),valor,data,createdAt:TS()});
+      const snaps=[]; for(const ref of pref) snaps.push(await t.get(ref));
+      const saved=[]; for(let i=0;i<items.length;i++){ const snap=snaps[i]; if(!snap.exists) throw Object.assign(new Error(),{userMsg:'Produto não encontrado.'}); const pd=snap.data(), item=items[i]; if(Number(pd.estoque||0)<item.qtd) throw Object.assign(new Error(),{userMsg:`Estoque insuficiente para ${pd.nome}.`}); saved.push({...item,produtoNome:pd.nome,precoUnitario:item.preco,custo:Number(pd.custo||0)}); t.update(pref[i],{estoque:Number(pd.estoque||0)-item.qtd}); }
+      const subtotal=saved.reduce((s,x)=>s+x.preco*x.qtd,0); const desconto=val('f-dtipo').startsWith('-')?round2(subtotal-valor):0, acrescimo=val('f-dtipo').startsWith('+')?round2(valor-subtotal):0;
+      t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',itens:saved,produtoId:saved[0].produtoId,produtoNome:saved[0].produtoNome,qtd:saved.reduce((s,x)=>s+x.qtd,0),precoUnitario:saved[0].preco,custo:saved[0].custo,subtotal,desconto,acrescimo,valor,data,formaPagamento:val('f-forma'),valorRecebido:+val('f-recebido')||0,createdAt:TS()});
     });
     return true;
   });
-  updVenda();
+  window.__saleItems=[]; addSaleItem(); calcSale();
 }
-function updVenda(src){
-  const sel=document.getElementById('f-prod'); if(!sel) return;
-  const pr=+(sel.options[sel.selectedIndex]?.dataset.preco||0), q=+(val('f-qtd')||1);
-  const sub=pr*q;
-  document.getElementById('f-sub').value=sub.toFixed(2);
-  if(src==='final'){ document.getElementById('f-dsc').value=''; return; }
-  const d=+val('f-dsc')||0, t=val('f-dtipo'), m=t[1]==='p'?sub*d/100:d;
-  document.getElementById('f-val').value=(t[0]==='-'?Math.max(0,sub-Math.min(m,sub)):sub+m).toFixed(2);
-}
-function updPag(){ document.getElementById('box-2x').style.display=val('f-pag')!=='1'?'block':'none'; }
+window.__saleItems=[];
+function addSaleItem(){ const box=document.getElementById('sale-items'); if(!box) return; const i=window.__saleItems.length; window.__saleItems.push({produtoId:DATA.produtos[0]?.id||'',qtd:1,preco:Number(DATA.produtos[0]?.preco||0)}); renderSaleItems(); }
+function renderSaleItems(){ const box=document.getElementById('sale-items'); if(!box) return; const opts=DATA.produtos.map(p=>`<option value="${p.id}">${esc(p.nome)} · ${money(p.preco)} · est ${p.estoque}</option>`).join(''); box.innerHTML=window.__saleItems.map((it,i)=>`<div class="sale-item"><div class="field"><label>Produto</label><select onchange="changeSaleItem(${i},this.value)">${DATA.produtos.map(p=>`<option value="${p.id}" ${p.id===it.produtoId?'selected':''}>${esc(p.nome)} · ${money(p.preco)} · est ${p.estoque}</option>`).join('')}</select></div><div class="field"><label>Qtd</label><input type="number" min="1" value="${it.qtd}" oninput="changeSaleQty(${i},this.value)"/></div><div class="field"><label>Subtotal</label><input value="${money(it.preco*it.qtd)}" readonly/></div><button class="btn btn-danger btn-sm" ${window.__saleItems.length===1?'disabled':''} onclick="removeSaleItem(${i})">×</button></div>`).join(''); calcSale(); }
+function changeSaleItem(i,id){ const p=byId('produtos',id); if(p){window.__saleItems[i].produtoId=id;window.__saleItems[i].preco=Number(p.preco||0);renderSaleItems();} }
+function changeSaleQty(i,q){ window.__saleItems[i].qtd=Math.max(1,parseInt(q)||1); calcSale(); }
+function removeSaleItem(i){ window.__saleItems.splice(i,1); renderSaleItems(); }
+function collectSaleItems(){ return window.__saleItems.filter(x=>x.produtoId).map(x=>({...x,qtd:Math.max(1,parseInt(x.qtd)||1),preco:Number(x.preco||0)})); }
+function calcSale(){ const items=collectSaleItems(), sub=items.reduce((s,x)=>s+x.preco*x.qtd,0), d=+val('f-dsc')||0, typ=val('f-dtipo'), adj=typ.endsWith('p')?sub*d/100:d, final=typ.startsWith('-')?Math.max(0,sub-Math.min(adj,sub)):sub+adj; const el=document.getElementById('f-val'); if(el)el.value=final.toFixed(2); calcTroco(); }
+function updPag(){ const b=document.getElementById('box-2x'); if(b)b.style.display=val('f-pag')!=='1'?'block':'none'; }
+function calcTroco(){ const b=document.getElementById('troco-box'); if(!b)return; const totalv=+val('f-val')||0, rec=+val('f-recebido')||0; b.innerHTML=rec>=totalv?`Troco: <strong>${money(rec-totalv)}</strong>`:`Falta: <strong>${money(totalv-rec)}</strong>`; }
 function modalParcelas(id){
-  const v=byId('vendas',id); if(!v) return;
-  const ps=parcelasDe(v);
-  openModal('Parcelas · '+esc(nomeCli(v)),
-    `<p class="modal-msg" style="margin-bottom:.6rem">${esc(nomeProd(v))} · total ${money(v.valor)}</p>`+
-    ps.map((p,i)=>`<label style="display:flex;justify-content:space-between;gap:.5rem;padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.85rem">
-      <span><input type="checkbox" id="pp-${i}" ${p.pago?'checked':''}/> ${i+1}ª · ${money(p.valor)}</span>
-      <span style="color:var(--muted)">vence ${fmtDate(p.venc)}</span></label>`).join(''),
-    async()=>{
-      const novo=ps.map((p,i)=>({...p,pago:document.getElementById('pp-'+i).checked}));
-      await col('vendas').doc(id).update({parcelas:novo});
-      return true;
-    },{okMsg:'Parcelas atualizadas'});
+  const v=byId('vendas',id); if(!v) return; const ps=parcelasDe(v);
+  openModal('Parcelas · '+esc(nomeCli(v)),`<p class="modal-msg" style="margin-bottom:.6rem">${esc(nomeProd(v))} · total ${money(v.valor)}</p>`+ps.map((p,i)=>`<label style="display:flex;justify-content:space-between;gap:.5rem;padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.85rem"><span><input type="checkbox" id="pp-${i}" ${p.pago?'checked':''}/> ${i+1}ª · ${money(p.valor)}</span><span style="color:var(--muted)">vence ${fmtDate(p.venc)}</span></label>`).join(''),async()=>{ const novo=ps.map((p,i)=>({...p,pago:document.getElementById('pp-'+i).checked})); await col('vendas').doc(id).update({parcelas:novo}); return true; },{okMsg:'Parcelas atualizadas'});
 }
+function imprimirVenda(id){ const v=byId('vendas',id); if(!v)return; const c=byId('clientes',v.clienteId); const items=itensVenda(v); const root=document.getElementById('toast-root'); const old=document.getElementById('receipt-print'); if(old)old.remove(); const el=document.createElement('div'); el.id='receipt-print'; el.className='receipt-print'; el.innerHTML=`<h1>ZM Pratas</h1><div class="center">Comprovante de venda</div><div class="center">${fmtDate(v.data)} · ${esc(nomeCli(v))}</div><table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>${items.map(i=>`<tr><td>${esc(i.produtoNome||byId('produtos',i.produtoId)?.nome||'Produto')}</td><td>${i.qtd}</td><td>${money(i.preco*i.qtd)}</td></tr>`).join('')}</tbody></table><div class="total">Total: ${money(v.valor)}</div><div>Pagamento: ${esc(v.formaPagamento||'—')}</div><div>Recebido: ${money(v.valorRecebido||recebidoVenda(v))}</div><div>Cliente: ${esc(c?.telefone||'')}</div>`; document.body.appendChild(el); window.print(); setTimeout(()=>el.remove(),800); }
 function delVenda(id){
-  openModal('Excluir venda','<p class="modal-msg">Excluir e devolver o estoque?</p>',async()=>{
-    const v=byId('vendas',id); if(!v) return true;
-    await db.runTransaction(async t=>{
-      let snap=null; const pref=v.produtoId?col('produtos').doc(v.produtoId):null;
-      if(pref) snap=await t.get(pref);
-      if(snap?.exists) t.update(pref,{estoque:Number(snap.data().estoque||0)+Number(v.qtd||0)});
-      t.delete(col('vendas').doc(id));
-    });
-    return true;
-  },{saveLabel:'Excluir',danger:true,okMsg:'Venda excluída'});
+  openModal('Excluir venda','<p class="modal-msg">Excluir e devolver todos os produtos ao estoque?</p>',async()=>{ const v=byId('vendas',id); if(!v)return true; await db.runTransaction(async t=>{ for(const it of itensVenda(v)){ const pref=col('produtos').doc(it.produtoId); const snap=await t.get(pref); if(snap.exists)t.update(pref,{estoque:Number(snap.data().estoque||0)+Number(it.qtd||0)}); } t.delete(col('vendas').doc(id)); }); return true; },{saveLabel:'Excluir',danger:true,okMsg:'Venda excluída'});
 }
 
 /* ---------- Clientes ---------- */
