@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <style>
 :root{--bg:#f4f7fb;--surface:#fff;--surface-2:#f8fafc;--ink:#0f172a;--muted:#5b6b82;--border:#e2e8f0;--blue-deep:#0a1628;--blue-dark:#0f2744;--blue-mid:#163a5f;--blue-accent:#3b82f6;--blue-soft:#dbeafe;--blue-50:#eff6ff;--success:#059669;--danger:#dc2626;--shadow:0 1px 3px rgba(15,39,68,.06),0 8px 24px rgba(15,39,68,.04);--radius:12px;--sidebar:240px}
 html.dark{--bg:#0b1220;--surface:#111827;--surface-2:#0f172a;--ink:#e5eefb;--muted:#94a3b8;--border:#1e293b;--blue-deep:#060d18;--blue-dark:#0b1a2e;--blue-mid:#12263f;--blue-soft:#1e3a5f;--blue-50:#132337;--shadow:0 1px 3px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25)}
@@ -201,6 +202,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+const storage = firebase.storage();
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','pedidos','reinvestimentos'];
@@ -382,11 +384,26 @@ function renderProdutos(){
     <div class="meta">${esc(p.cat||'Geral')} · ${p.sku?`SKU ${esc(p.sku)} · `:''}Estoque <strong>${p.estoque}</strong> · Custo ${money(p.custo)}</div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto</div>'}</div>`;
 }
+async function uploadFotoProduto(file,produtoId){
+  if(!file) return null;
+  if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
+  if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
+  const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg');
+  const path=`users/${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
+  const ref=storage.ref(path);
+  await ref.put(file,{contentType:file.type});
+  return {url:await ref.getDownloadURL(),path};
+}
 function modalProduto(id){
   const p=byId('produtos',id)||{};
+  window.__produtoFotoFile=null; window.__removerFoto=false;
   openModal(p.id?'Editar produto':'Novo produto',`
     <div id="foto-preview" class="photo-preview">${p.foto?`<img src="${p.foto}"/>`:'📷 Adicionar foto da joia'}</div>
-    <div class="field"><label>Foto da joia</label><input id="f-foto" type="file" accept="image/*" onchange="previewProdutoFoto(this)"/></div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
+      <label class="btn btn-outline btn-sm" style="cursor:pointer">📷 Escolher foto<input id="f-foto" type="file" accept="image/*" style="display:none" onchange="previewProdutoFoto(this)"/></label>
+      ${p.foto?`<button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">Remover foto</button>`:''}
+    </div>
+    <div class="modal-msg" style="margin-bottom:.8rem">A foto fica salva no Firebase e pode ter até 5 MB.</div>
     <div class="field"><label>Nome</label><input id="f-nome" value="${esc(p.nome||'')}"/></div>
     <div class="row-2"><div class="field"><label>SKU / Código</label><input id="f-sku" value="${esc(p.sku||'')}" placeholder="Ex.: AN001"/></div><div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div></div>
     <div class="row-2"><div class="field"><label>Preço</label><input id="f-preco" type="number" step="0.01" min="0" value="${p.preco??''}"/></div>
@@ -394,15 +411,27 @@ function modalProduto(id){
     <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>`,async()=>{
     const nome=val('f-nome'), preco=+val('f-preco');
     if(!nome||!val('f-preco')||!(preco>=0)){ modalError('Informe nome e preço.'); return false; }
-    const foto=window.__produtoFoto??p.foto??'';
-    const payload={nome,sku:val('f-sku'),preco,custo:+val('f-custo')||0,estoque:+val('f-est')||0,cat:val('f-cat')||'Geral',foto,updatedAt:TS()};
-    window.__produtoFoto=null;
-    if(p.id) await col('produtos').doc(p.id).set(payload,{merge:true}); else await col('produtos').add({...payload,createdAt:TS()});
-    return true;
+    try{
+      let produtoId=p.id;
+      if(!produtoId) produtoId=col('produtos').doc().id;
+      let foto=p.foto||'', fotoPath=p.fotoPath||'';
+      if(window.__removerFoto){ foto=''; fotoPath=''; }
+      if(window.__produtoFotoFile){ const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId); foto=up.url; fotoPath=up.path; }
+      const payload={nome,sku:val('f-sku'),preco,custo:+val('f-custo')||0,estoque:+val('f-est')||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
+      await col('produtos').doc(produtoId).set(p.id?payload:{...payload,createdAt:TS()},{merge:true});
+      window.__produtoFotoFile=null; window.__removerFoto=false;
+      return true;
+    }catch(ex){ modalError(ex.message||'Não foi possível salvar a foto.'); return false; }
   });
-  window.__produtoFoto=null;
 }
-function previewProdutoFoto(input){ const f=input.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=e=>{ const img=new Image(); img.onload=()=>{ const max=900, scale=Math.min(1,max/Math.max(img.width,img.height)), c=document.createElement('canvas'); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale); c.getContext('2d').drawImage(img,0,0,c.width,c.height); window.__produtoFoto=c.toDataURL('image/jpeg',.78); document.getElementById('foto-preview').innerHTML=`<img src="${window.__produtoFoto}"/>`; }; img.src=e.target.result; }; r.readAsDataURL(f); }
+function previewProdutoFoto(input){
+  const f=input.files?.[0]; if(!f) return;
+  if(!f.type.startsWith('image/')){ showNotice('Selecione uma imagem válida.','error'); input.value=''; return; }
+  if(f.size>5*1024*1024){ showNotice('A foto deve ter no máximo 5 MB.','error'); input.value=''; return; }
+  window.__produtoFotoFile=f; window.__removerFoto=false;
+  const r=new FileReader(); r.onload=e=>{ document.getElementById('foto-preview').innerHTML=`<img src="${e.target.result}"/>`; }; r.readAsDataURL(f);
+}
+function removerFotoProduto(){ window.__removerFoto=true; window.__produtoFotoFile=null; const el=document.getElementById('foto-preview'); if(el) el.innerHTML='📷 Adicionar foto da joia'; }
 
 function delProduto(id){
   const usado=DATA.vendas.some(v=>v.produtoId===id)||DATA.compras.some(c=>c.produtoId===id);
