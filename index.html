@@ -79,9 +79,9 @@ td a{color:var(--blue-accent);text-decoration:none}
 .btn-sm{padding:.32rem .6rem;font-size:.74rem}
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
 .search{height:38px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--ink);width:min(260px,100%);outline:none}
-.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1rem}
-.product-card{overflow:hidden;display:flex;flex-direction:column}
-.product-img{height:110px;background:linear-gradient(145deg,var(--blue-soft),var(--blue-50));display:grid;place-items:center;font-size:2rem}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}
+.product-card{overflow:hidden;display:flex;flex-direction:column}.product-body{display:flex;gap:.85rem;align-items:center;padding:.9rem}.product-info{min-width:0;flex:1}.product-info h4{font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.product-actions{display:flex;gap:.45rem;padding:0 .9rem .9rem}
+.product-img{width:96px;height:96px;flex:0 0 96px;border-radius:10px;background:linear-gradient(145deg,var(--blue-soft),var(--blue-50));display:grid;place-items:center;font-size:2rem;overflow:hidden}.product-img img{width:100%;height:100%;object-fit:cover;display:block}.product-img.has-photo{background:var(--surface-2)}
 .product-img img{width:100%;height:100%;object-fit:cover;display:block}.product-img.has-photo{background:var(--surface-2)}
 .sales-items{display:flex;flex-direction:column;gap:.55rem;margin:.5rem 0 1rem}.sale-item{display:grid;grid-template-columns:minmax(0,1fr) 75px 100px 38px;gap:.45rem;align-items:end;padding:.65rem;border:1px solid var(--border);border-radius:9px;background:var(--surface-2)}
 .sale-item .field{margin:0}.sale-total{font-weight:700;font-size:1rem}.chart-bars{display:flex;align-items:flex-end;gap:.55rem;height:190px;padding:1rem}.chart-col{flex:1;min-width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:.3rem}.chart-bar{width:100%;max-width:48px;border-radius:7px 7px 2px 2px;background:var(--blue-accent);min-height:2px}.chart-label{font-size:.62rem;color:var(--muted);white-space:nowrap}.chart-value{font-size:.62rem;color:var(--muted);font-weight:600}.photo-preview{width:100%;height:130px;border:1px dashed var(--border);border-radius:10px;display:grid;place-items:center;overflow:hidden;background:var(--surface-2);margin-bottom:.7rem}.photo-preview img{width:100%;height:100%;object-fit:cover}.receipt-print{display:none}
@@ -380,8 +380,8 @@ function importarBackup(){ const input=document.createElement('input'); input.ty
 function renderProdutos(){
   return `<div class="toolbar"><input class="search" placeholder="Buscar por nome, SKU ou categoria..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div>
   <div class="product-grid" id="prod-grid">${DATA.produtos.map(p=>`<div class="product-card" data-q="${esc((p.nome+' '+(p.sku||'')+' '+(p.cat||'')).toLowerCase())}">
-    <div class="product-img ${p.foto?'has-photo':''}">${p.foto?`<img src="${p.foto}" alt="${esc(p.nome)}"/>`:'💎'}</div><div class="product-info"><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
-    <div class="meta">${esc(p.cat||'Geral')} · ${p.sku?`SKU ${esc(p.sku)} · `:''}Estoque <strong>${p.estoque}</strong> · Custo ${money(p.custo)}</div></div>
+    <div class="product-body"><div class="product-img ${p.foto?'has-photo':''}">${p.foto?`<img src="${p.foto}" alt="${esc(p.nome)}"/>`:'💎'}</div><div class="product-info"><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
+    <div class="meta">${esc(p.cat||'Geral')} · ${p.sku?`SKU ${esc(p.sku)} · `:''}Estoque <strong>${p.estoque}</strong> · Custo ${money(p.custo)}</div></div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto</div>'}</div>`;
 }
 async function uploadFotoProduto(file,produtoId){
@@ -401,7 +401,7 @@ function modalProduto(id){
     <div id="foto-preview" class="photo-preview">${p.foto?`<img src="${p.foto}"/>`:'📷 Adicionar foto da joia'}</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
       <label class="btn btn-outline btn-sm" style="cursor:pointer">📷 Escolher foto<input id="f-foto" type="file" accept="image/*" style="display:none" onchange="previewProdutoFoto(this)"/></label>
-      ${p.foto?`<button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">Remover foto</button>`:''}
+      <button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">🗑️ Retirar imagem</button>
     </div>
     <div class="modal-msg" style="margin-bottom:.8rem">A foto fica salva no Firebase e pode ter até 5 MB.</div>
     <div class="field"><label>Nome</label><input id="f-nome" value="${esc(p.nome||'')}"/></div>
@@ -431,7 +431,7 @@ function previewProdutoFoto(input){
   window.__produtoFotoFile=f; window.__removerFoto=false;
   const r=new FileReader(); r.onload=e=>{ document.getElementById('foto-preview').innerHTML=`<img src="${e.target.result}"/>`; }; r.readAsDataURL(f);
 }
-function removerFotoProduto(){ window.__removerFoto=true; window.__produtoFotoFile=null; const el=document.getElementById('foto-preview'); if(el) el.innerHTML='📷 Adicionar foto da joia'; }
+function removerFotoProduto(){ window.__removerFoto=true; window.__produtoFotoFile=null; const el=document.getElementById('foto-preview'); if(el) el.innerHTML='📷 Sem imagem'; const input=document.getElementById('f-foto'); if(input) input.value=''; }
 
 function delProduto(id){
   const usado=DATA.vendas.some(v=>v.produtoId===id)||DATA.compras.some(c=>c.produtoId===id);
