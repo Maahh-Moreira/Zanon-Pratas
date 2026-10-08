@@ -297,24 +297,41 @@ function openModal(title, body, onSave, opts={}){
     <div class="modal-header"><h3>${title}</h3><button class="modal-close" aria-label="Fechar" onclick="closeModal()">×</button></div>
     <div class="modal-body">${body}<div class="auth-error" id="modal-error" style="margin-top:.75rem"></div></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn ${opts.danger?'btn-danger':'btn-primary'}" id="modal-save">${opts.saveLabel||'Salvar'}</button></div></div></div>`;
-  document.getElementById('modal-save').onclick=async()=>{
-    const btn=document.getElementById('modal-save'); btn.disabled=true; btn.textContent='Salvando...';
+  document.getElementById('modal-save').onclick=async function(){
+    const btn=this;
+    btn.disabled=true;
+    btn.textContent='Salvando...';
+    let terminou=false;
+    const watchdog=setTimeout(()=>{
+      if(terminou) return;
+      btn.disabled=false;
+      btn.textContent=opts.saveLabel||'Salvar';
+      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Firebase.');
+      showNotice('O salvamento está demorando. Verifique a conexão com o Firebase.','error');
+    },12000);
     try{
+      if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
       const ok=await onSave();
+      terminou=true;
+      clearTimeout(watchdog);
       if(ok){
         closeModal();
         if(!opts.silent) toast(opts.okMsg||'Salvo com sucesso');
-        // Recarrega sem deixar o botão preso em "Salvando..." caso a leitura do Firebase demore.
         if(!opts.noReload){
-          try{ await Promise.race([loadAll(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('reload-timeout')),10000))]); }catch(reloadErr){ console.warn('Dados salvos, mas a atualização da tela demorou:',reloadErr); }
+          try{ await Promise.race([loadAll(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('reload-timeout')),8000))]); }catch(reloadErr){ console.warn('Dados salvos, mas a atualização da tela demorou:',reloadErr); }
           go(PAGE);
         }
       }
     }catch(ex){
+      terminou=true;
+      clearTimeout(watchdog);
       console.error('Erro no botão Salvar:', ex);
       modalError(ex?.userMsg || ex?.message || mapErr(ex?.code) || 'Não foi possível salvar.');
+    }finally{
+      terminou=true;
+      clearTimeout(watchdog);
+      if(btn.isConnected){ btn.disabled=false; btn.textContent=opts.saveLabel||'Salvar'; }
     }
-    const b=document.getElementById('modal-save'); if(b){ b.disabled=false; b.textContent=opts.saveLabel||'Salvar'; }
   };
 }
 
@@ -430,17 +447,20 @@ function modalProduto(id){
       if(window.__removerFoto){ foto=''; fotoPath=''; }
       const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
-      // Evita ficar preso em "Salvando..." se o Firebase não responder.
+      if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
+      if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Firebase Firestore não foi inicializado. Recarregue a página.'});
+      // O produto é salvo PRIMEIRO no Firestore. A foto nunca bloqueia o cadastro.
+      const produtoRef=db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
       await Promise.race([
-        col('produtos').doc(produtoId).set(payload,{merge:true}),
-        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Firebase não respondeu a tempo. Verifique sua internet e as regras do Firestore.'),{userMsg:'O Firebase não respondeu a tempo. Verifique sua internet e as regras do Firestore.'})),15000))
+        produtoRef.set(payload,{merge:true}),
+        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Firestore não respondeu em 15 segundos.'),{userMsg:'O Firestore não respondeu em 15 segundos. Verifique a internet e as regras do Firestore.'})),15000))
       ]);
 
       // Depois envia a nova foto, se houver.
       if(window.__produtoFotoFile){
         try{
           const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
-          await col('produtos').doc(produtoId).set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
+          await produtoRef.set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
         }catch(photoErr){
           console.error('Erro ao enviar foto:',photoErr);
           toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
