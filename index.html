@@ -626,7 +626,7 @@ function marcarParcela(vendaId,index,pago=true){
 function renderReceber(){
   const pend=parcelasPendentes(), totalPend=pend.reduce((s,x)=>s+Number(x.p.valor||0),0);
   const atrasadas=pend.filter(x=>x.p.venc&&x.p.venc<today()), prox=pend.filter(x=>!x.p.venc||x.p.venc>=today());
-  const row=x=>{const atrasada=x.p.venc&&x.p.venc<today(); return `<tr><td>${fmtDate(x.p.v.vendaData||x.v.data)}</td><td>${esc(nomeCli(x.v))}</td><td>${esc(nomeProd(x.v))}</td><td>${x.i+1}ª parcela</td><td>${fmtDate(x.p.venc)}</td><td><strong>${money(x.p.valor)}</strong></td><td>${atrasada?'<span class="badge" >Atrasada</span>':'<span class="badge warn">Pendente</span>'}</td><td><button class="btn btn-primary btn-sm" onclick="marcarParcela('${x.v.id}',${x.i},true)">Marcar paga</button></td></tr>`};
+  const row=x=>{const atrasada=x.p.venc&&x.p.venc<today(); return `<tr><td>${fmtDate(x.v.data)}</td><td>${esc(nomeCli(x.v))}</td><td>${esc(nomeProd(x.v))}</td><td>${x.i+1}ª parcela</td><td>${fmtDate(x.p.venc)}</td><td><strong>${money(x.p.valor)}</strong></td><td>${atrasada?'<span class="badge" >Atrasada</span>':'<span class="badge warn">Pendente</span>'}</td><td><button class="btn btn-primary btn-sm" onclick="marcarParcela('${x.v.id}',${x.i},true)">Marcar paga</button></td></tr>`};
   return `<div class="kpi-grid">
     <div class="kpi"><div class="kpi-label">💳 Total a receber</div><div class="kpi-value">${money(totalPend)}</div><div class="kpi-sub">${pend.length} parcela(s) pendente(s)</div></div>
     <div class="kpi"><div class="kpi-label">⚠️ Em atraso</div><div class="kpi-value">${money(atrasadas.reduce((s,x)=>s+Number(x.p.valor||0),0))}</div><div class="kpi-sub">${atrasadas.length} parcela(s)</div></div>
