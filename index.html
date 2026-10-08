@@ -301,7 +301,15 @@ function openModal(title, body, onSave, opts={}){
     const btn=document.getElementById('modal-save'); btn.disabled=true; btn.textContent='Salvando...';
     try{
       const ok=await onSave();
-      if(ok){ closeModal(); if(!opts.silent) toast(opts.okMsg||'Salvo com sucesso'); if(!opts.noReload){ await loadAll(); go(PAGE); } }
+      if(ok){
+        closeModal();
+        if(!opts.silent) toast(opts.okMsg||'Salvo com sucesso');
+        // Recarrega sem deixar o botão preso em "Salvando..." caso a leitura do Firebase demore.
+        if(!opts.noReload){
+          try{ await Promise.race([loadAll(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('reload-timeout')),10000))]); }catch(reloadErr){ console.warn('Dados salvos, mas a atualização da tela demorou:',reloadErr); }
+          go(PAGE);
+        }
+      }
     }catch(ex){
       console.error('Erro no botão Salvar:', ex);
       modalError(ex?.userMsg || ex?.message || mapErr(ex?.code) || 'Não foi possível salvar.');
@@ -422,7 +430,11 @@ function modalProduto(id){
       if(window.__removerFoto){ foto=''; fotoPath=''; }
       const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
-      await col('produtos').doc(produtoId).set(payload,{merge:true});
+      // Evita ficar preso em "Salvando..." se o Firebase não responder.
+      await Promise.race([
+        col('produtos').doc(produtoId).set(payload,{merge:true}),
+        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Firebase não respondeu a tempo. Verifique sua internet e as regras do Firestore.'),{userMsg:'O Firebase não respondeu a tempo. Verifique sua internet e as regras do Firestore.'})),15000))
+      ]);
 
       // Depois envia a nova foto, se houver.
       if(window.__produtoFotoFile){
