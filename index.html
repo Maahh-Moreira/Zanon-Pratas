@@ -166,6 +166,7 @@ td a{color:var(--blue-accent);text-decoration:none}
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
       <button class="nav-item" data-page="compras" onclick="go('compras')"><span class="ico">◇</span><span>Compras</span></button>
       <button class="nav-item" data-page="reinvest" onclick="go('reinvest')"><span class="ico">↻</span><span>Reinvestimento</span></button>
+      <button class="nav-item" data-page="receber" onclick="go('receber')"><span class="ico">$</span><span>A Receber</span></button>
       <button class="nav-item" data-page="gastos" onclick="go('gastos')"><span class="ico">▣</span><span>Gastos</span></button>
     </nav>
     <div class="sidebar-footer">
@@ -302,9 +303,9 @@ function openModal(title, body, onSave, opts={}){
 function go(page){
   PAGE=page;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',compras:'Compras / Estoque',gastos:'Gastos',pedidos:'Pedidos',reinvest:'Reinvestimento'};
+  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',compras:'Compras / Estoque',gastos:'Gastos',pedidos:'Pedidos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
   document.getElementById('page-title').textContent=titles[page];
-  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,compras:renderCompras,gastos:renderGastos,pedidos:renderPedidos,reinvest:renderReinvest};
+  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,compras:renderCompras,gastos:renderGastos,pedidos:renderPedidos,reinvest:renderReinvest,receber:renderReceber};
   document.getElementById('content').innerHTML=r[page]();
 }
 
@@ -326,14 +327,36 @@ function pagtoLabel(v){
   return `<span class="badge ${pg===ps.length?'ok':atraso?'':'warn'}">${pg}/${ps.length} pagas${atraso?' · atrasada':''}</span>`;
 }
 
+function periodoAtual(){
+  const t=today(), de=t.slice(0,8)+'01';
+  return DATA.vendas.filter(v=>(v.data||'')>=de&&(v.data||'')<=t);
+}
 function renderDashboard(){
-  const vend=total(DATA.vendas), cmv=DATA.vendas.reduce((s,v)=>s+custoVenda(v),0), gas=total(DATA.gastos);
-  const lucro=vend-cmv-gas;
+  const vs=periodoAtual(), vend=total(vs), cmv=vs.reduce((s,v)=>s+custoVenda(v),0), gas=DATA.gastos.filter(g=>(g.data||'')>=today().slice(0,8)+'01').reduce((s,g)=>s+Number(g.valor||0),0);
+  const lucro=vend-cmv-gas, recebido=DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0);
+  const aRec=DATA.vendas.reduce((s,v)=>s+aReceber(v),0), reserva=saldoReservaReinvestimento(), livre=caixaLivre();
+  const estoqueValor=DATA.produtos.reduce((s,p)=>s+Number(p.estoque||0)*Number(p.custo||0),0);
   return `<div class="kpi-grid">
-    <div class="kpi"><div class="kpi-label">Vendas</div><div class="kpi-value">${money(vend)}</div><div class="kpi-sub">${DATA.vendas.length} registro(s) · a receber ${money(DATA.vendas.reduce((s,v)=>s+aReceber(v),0))}</div></div>
-    <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${DATA.produtos.length}</div></div>
-    <div class="kpi"><div class="kpi-label">Clientes</div><div class="kpi-value">${DATA.clientes.length}</div><div class="kpi-sub">${DATA.pedidos.filter(aberto).length} pedido(s) em aberto</div></div>
-    <div class="kpi"><div class="kpi-label">Lucro estimado</div><div class="kpi-value">${money(lucro)}</div><div class="kpi-sub">Vendas − custo das peças − gastos</div></div></div>
+    <div class="kpi"><div class="kpi-label">💰 Vendas do mês</div><div class="kpi-value">${money(vend)}</div><div class="kpi-sub">${vs.length} venda(s)</div></div>
+    <div class="kpi"><div class="kpi-label">📈 Lucro do mês</div><div class="kpi-value">${money(lucro)}</div><div class="kpi-sub">Vendas − custo − gastos</div></div>
+    <div class="kpi"><div class="kpi-label">💳 A receber</div><div class="kpi-value">${money(aRec)}</div><div class="kpi-sub">Parcelas pendentes</div></div>
+    <div class="kpi"><div class="kpi-label">💵 Caixa livre</div><div class="kpi-value">${money(livre)}</div><div class="kpi-sub">Depois da reserva de reinvestimento</div></div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">🔄 Reserva para reinvestir</div><div class="kpi-value">${money(reserva)}</div><div class="kpi-sub">Disponível para novas joias</div></div>
+    <div class="kpi"><div class="kpi-label">📦 Valor do estoque</div><div class="kpi-value">${money(estoqueValor)}</div><div class="kpi-sub">Pelo custo cadastrado</div></div>
+    <div class="kpi"><div class="kpi-label">👥 Clientes</div><div class="kpi-value">${DATA.clientes.length}</div><div class="kpi-sub">${DATA.pedidos.filter(aberto).length} pedido(s) em aberto</div></div>
+    <div class="kpi"><div class="kpi-label">💰 Total recebido</div><div class="kpi-value">${money(recebido)}</div><div class="kpi-sub">Vendas já pagas</div></div>
+  </div>
+  <div class="card"><div class="card-header"><h3>Resumo financeiro do mês</h3><button class="btn btn-outline btn-sm" onclick="go('reinvest')">Ver financeiro</button></div>
+    <div class="table-wrap"><table><thead><tr><th>Indicador</th><th>Valor</th></tr></thead><tbody>
+      <tr><td>Total vendido</td><td><strong>${money(vend)}</strong></td></tr>
+      <tr><td>Custo das joias vendidas</td><td>${money(cmv)}</td></tr>
+      <tr><td>Gastos</td><td>${money(gas)}</td></tr>
+      <tr><td>Lucro líquido estimado</td><td><strong>${money(lucro)}</strong></td></tr>
+      <tr><td>Reserva de reinvestimento</td><td>${money(reserva)}</td></tr>
+      <tr><td>Caixa livre</td><td><strong>${money(livre)}</strong></td></tr>
+    </tbody></table></div></div>
   <div class="card"><div class="card-header"><h3>Últimas vendas</h3><button class="btn btn-outline btn-sm" onclick="go('vendas')">Ver todas</button></div>
   <div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Valor</th></tr></thead><tbody>
   ${DATA.vendas.slice(0,6).map(v=>`<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(v.valor)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Nenhuma venda ainda</td></tr>'}
@@ -492,9 +515,9 @@ function delCliente(id){
 /* ---------- Compras ---------- */
 function renderCompras(){
   return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'comp-table')"/><button class="btn btn-primary" onclick="modalCompra()">+ Compra</button></div>
-  <div class="card"><div class="table-wrap"><table id="comp-table"><thead><tr><th>Data</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Fornecedor</th><th></th></tr></thead><tbody>
-  ${DATA.compras.map(c=>`<tr><td>${fmtDate(c.data)}</td><td>${esc(nomeProd(c))}</td><td>${c.qtd}</td><td>${money(c.valor)}</td><td>${esc(c.fornecedor||'—')}</td>
-  <td><button class="btn btn-danger btn-sm" onclick="delCompra('${c.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Nenhuma compra</td></tr>'}
+  <div class="card"><div class="table-wrap"><table id="comp-table"><thead><tr><th>Data</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Reinvestimento</th><th>Fornecedor</th><th></th></tr></thead><tbody>
+  ${DATA.compras.map(c=>`<tr><td>${fmtDate(c.data)}</td><td>${esc(nomeProd(c))}</td><td>${c.qtd}</td><td>${money(c.valor)}</td><td>${Number(c.pagoReinvestimento||0)>0?money(c.pagoReinvestimento):'—'}</td><td>${esc(c.fornecedor||'—')}</td>
+  <td><button class="btn btn-danger btn-sm" onclick="delCompra('${c.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Nenhuma compra</td></tr>'}
   </tbody></table></div></div>
   <div class="card"><div class="card-header"><h3>Estoque atual</h3></div><div class="table-wrap"><table>
   <thead><tr><th>Produto</th><th>Cat</th><th>Estoque</th><th>Custo</th><th>Preço</th></tr></thead><tbody>
@@ -508,11 +531,15 @@ function modalCompra(){
     <div class="field"><label>Produto</label><select id="f-prod">${op}</select></div>
     <div class="row-2"><div class="field"><label>Qtd</label><input id="f-qtd" type="number" min="1" value="1"/></div>
     <div class="field"><label>Valor total</label><input id="f-val" type="number" step="0.01" min="0" oninput="chkCompra()"/></div></div>
-    <div id="chk-compra" class="modal-msg" style="margin-bottom:.85rem">Disponível para novas compras: <strong>${money(disponivel())}</strong></div>
+    <div class="field"><label>Quanto desta compra usa a reserva de reinvestimento?</label><input id="f-reinv-pago" type="number" step="0.01" min="0" value="0" oninput="chkCompra()"/></div>
+    <div id="chk-compra" class="modal-msg" style="margin-bottom:.85rem">Reserva disponível: <strong>${money(saldoReservaReinvestimento())}</strong> · Caixa livre: <strong>${money(caixaLivre())}</strong></div>
     <div class="field"><label>Fornecedor</label><input id="f-forn"/></div>
     <div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div>`,async()=>{
     const produtoId=val('f-prod'), qtd=Math.max(1,parseInt(val('f-qtd'))||1), valor=+val('f-val')||0, fornecedor=val('f-forn'), data=val('f-data')||today();
+    const pagoReinvestimento=Math.max(0,+val('f-reinv-pago')||0);
     if(!produtoId){ modalError('Selecione o produto.'); return false; }
+    if(pagoReinvestimento>valor){ modalError('O valor usado da reserva não pode ser maior que a compra.'); return false; }
+    if(pagoReinvestimento>saldoReservaReinvestimento()){ modalError(`A reserva de reinvestimento disponível é ${money(saldoReservaReinvestimento())}.`); return false; }
     const pref=col('produtos').doc(produtoId);
     await db.runTransaction(async t=>{
       const snap=await t.get(pref);
@@ -521,7 +548,7 @@ function modalCompra(){
       // custo médio ponderado (em vez de sobrescrever com a última compra)
       if(valor>0) patch.custo=round2((est*Number(cur.custo||0)+valor)/(est+qtd));
       t.update(pref,patch);
-      t.set(col('compras').doc(),{produtoId,produtoNome:cur.nome,qtd,valor,fornecedor,data,createdAt:TS()});
+      t.set(col('compras').doc(),{produtoId,produtoNome:cur.nome,qtd,valor,pagoReinvestimento,fornecedor,data,createdAt:TS()});
     });
     return true;
   });
@@ -583,6 +610,34 @@ async function setStatus(id,status){
   catch(ex){ showNotice(mapErr(ex.code),'error'); }
 }
 
+/* ---------- Contas a Receber ---------- */
+function parcelasPendentes(){
+  const out=[];
+  DATA.vendas.forEach(v=>{
+    parcelasDe(v).forEach((p,i)=>{ if(!p.pago) out.push({v,i,p}); });
+  });
+  return out.sort((a,b)=>String(a.p.venc||'9999').localeCompare(String(b.p.venc||'9999')));
+}
+function marcarParcela(vendaId,index,pago=true){
+  const v=byId('vendas',vendaId); if(!v) return;
+  const ps=parcelasDe(v).map((p,i)=>i===index?{...p,pago}:p);
+  col('vendas').doc(vendaId).update({parcelas:ps}).then(async()=>{ await loadAll(); go('receber'); toast(pago?'Parcela marcada como paga':'Parcela marcada como pendente'); }).catch(ex=>showNotice(mapErr(ex.code),'error'));
+}
+function renderReceber(){
+  const pend=parcelasPendentes(), totalPend=pend.reduce((s,x)=>s+Number(x.p.valor||0),0);
+  const atrasadas=pend.filter(x=>x.p.venc&&x.p.venc<today()), prox=pend.filter(x=>!x.p.venc||x.p.venc>=today());
+  const row=x=>{const atrasada=x.p.venc&&x.p.venc<today(); return `<tr><td>${fmtDate(x.p.v.vendaData||x.v.data)}</td><td>${esc(nomeCli(x.v))}</td><td>${esc(nomeProd(x.v))}</td><td>${x.i+1}ª parcela</td><td>${fmtDate(x.p.venc)}</td><td><strong>${money(x.p.valor)}</strong></td><td>${atrasada?'<span class="badge" >Atrasada</span>':'<span class="badge warn">Pendente</span>'}</td><td><button class="btn btn-primary btn-sm" onclick="marcarParcela('${x.v.id}',${x.i},true)">Marcar paga</button></td></tr>`};
+  return `<div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">💳 Total a receber</div><div class="kpi-value">${money(totalPend)}</div><div class="kpi-sub">${pend.length} parcela(s) pendente(s)</div></div>
+    <div class="kpi"><div class="kpi-label">⚠️ Em atraso</div><div class="kpi-value">${money(atrasadas.reduce((s,x)=>s+Number(x.p.valor||0),0))}</div><div class="kpi-sub">${atrasadas.length} parcela(s)</div></div>
+    <div class="kpi"><div class="kpi-label">📅 A vencer</div><div class="kpi-value">${money(prox.reduce((s,x)=>s+Number(x.p.valor||0),0))}</div><div class="kpi-sub">${prox.length} parcela(s)</div></div>
+    <div class="kpi"><div class="kpi-label">💰 Vendas recebidas</div><div class="kpi-value">${money(DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0))}</div><div class="kpi-sub">Somente valores já pagos</div></div>
+  </div>
+  <div class="card"><div class="card-header"><h3>Parcelas pendentes</h3><span class="meta">${pend.length} registro(s)</span></div><div class="table-wrap"><table><thead><tr><th>Venda</th><th>Cliente</th><th>Produto</th><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>
+    ${pend.map(row).join('')||'<tr><td colspan="8" class="empty">Nenhuma parcela pendente 🎉</td></tr>'}
+  </tbody></table></div></div>`;
+}
+
 /* ---------- Reinvestimento ---------- */
 // Dinheiro efetivamente recebido: venda à vista = valor; parcelada = só parcelas pagas
 const recebidoVenda=v=>parcelasDe(v).length?parcelasDe(v).filter(p=>p.pago).reduce((s,p)=>s+Number(p.valor||0),0):Number(v.valor||0);
@@ -590,7 +645,15 @@ const recebidoVenda=v=>parcelasDe(v).length?parcelasDe(v).filter(p=>p.pago).redu
 function caixaAntesRetiradas(){ return DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0)-total(DATA.compras)-total(DATA.gastos); }
 function totalRetiradas(){ return total(DATA.reinvestimentos,'retirada'); }
 function totalSeparadoReinvestimento(){ return total(DATA.reinvestimentos,'reinvestimento'); }
-function caixaLivre(){ return caixaAntesRetiradas()-totalRetiradas()-totalSeparadoReinvestimento(); }
+// Compras que foram pagas usando dinheiro previamente reservado para reinvestir.
+function totalUsadoDaReserva(){ return total(DATA.compras,'pagoReinvestimento'); }
+function saldoReservaReinvestimento(){ return Math.max(0,totalSeparadoReinvestimento()-totalUsadoDaReserva()); }
+// Caixa real já desconta compras, gastos e retiradas. A reserva restante reduz apenas o que está livre.
+function caixaLivre(){
+  const recebido=DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0);
+  const compras=total(DATA.compras), gastos=total(DATA.gastos), retiradas=totalRetiradas();
+  return recebido-compras-gastos-retiradas-saldoReservaReinvestimento();
+}
 let RANGE={tipo:'mes',de:'',ate:''};
 function rangeDates(){
   const t=today(); let de=t, ate=t;
@@ -669,10 +732,13 @@ function renderReinvest(){
 // Aviso ao registrar compra: compara com o valor disponível para novas compras.
 function chkCompra(){
   const box=document.getElementById('chk-compra'); if(!box) return;
-  const v=+val('f-val')||0, d=caixaLivre();
-  if(!v){ box.style.color=''; box.innerHTML=`Disponível para novas compras: <strong>${money(d)}</strong>`; return; }
-  const sobra=d-v; box.style.color=sobra>=0?'var(--success)':'var(--danger)';
-  box.innerHTML=sobra>=0?`✅ Compra dentro do valor disponível (${money(d)}).<br>Saldo após a compra: <strong>${money(sobra)}</strong>`:`⚠️ Compra acima do valor disponível (${money(d)}).<br>Faltam <strong>${money(-sobra)}</strong> para realizar a compra.`;
+  const v=+val('f-val')||0, usado=Math.max(0,+val('f-reinv-pago')||0), reserva=saldoReservaReinvestimento(), livre=caixaLivre();
+  const faltaReserva=Math.max(0,usado-reserva);
+  const caixaDepois=livre-(v-usado);
+  box.style.color=(faltaReserva===0 && caixaDepois>=0)?'var(--success)':'var(--danger)';
+  box.innerHTML=`Reserva disponível: <strong>${money(reserva)}</strong> · Caixa livre: <strong>${money(livre)}</strong><br>`+
+    (faltaReserva>0?`⚠️ Faltam <strong>${money(faltaReserva)}</strong> de reserva para este pagamento.`:
+      v?`Saldo livre após a compra: <strong>${money(caixaDepois)}</strong>`:'Informe o valor da compra.');
 }
 
 /* ---------- Gastos ---------- */
@@ -711,5 +777,3 @@ if(localStorage.getItem(THEME_KEY)==='dark'){ document.documentElement.classList
 </script>
 </body>
 </html>
-
-
