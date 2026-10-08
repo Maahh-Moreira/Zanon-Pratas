@@ -298,12 +298,15 @@ function openModal(title, body, onSave, opts={}){
     <div class="modal-body">${body}<div class="auth-error" id="modal-error" style="margin-top:.75rem"></div></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn ${opts.danger?'btn-danger':'btn-primary'}" id="modal-save">${opts.saveLabel||'Salvar'}</button></div></div></div>`;
   document.getElementById('modal-save').onclick=async()=>{
-    const btn=document.getElementById('modal-save'); btn.disabled=true;
+    const btn=document.getElementById('modal-save'); btn.disabled=true; btn.textContent='Salvando...';
     try{
       const ok=await onSave();
       if(ok){ closeModal(); if(!opts.silent) toast(opts.okMsg||'Salvo com sucesso'); if(!opts.noReload){ await loadAll(); go(PAGE); } }
-    }catch(ex){ modalError(ex.userMsg||mapErr(ex.code)); }
-    btn.disabled=false;
+    }catch(ex){
+      console.error('Erro no botão Salvar:', ex);
+      modalError(ex?.userMsg || ex?.message || mapErr(ex?.code) || 'Não foi possível salvar.');
+    }
+    const b=document.getElementById('modal-save'); if(b){ b.disabled=false; b.textContent=opts.saveLabel||'Salvar'; }
   };
 }
 
@@ -398,30 +401,46 @@ function modalProduto(id){
   const p=byId('produtos',id)||{};
   window.__produtoFotoFile=null; window.__removerFoto=false;
   openModal(p.id?'Editar produto':'Novo produto',`
-    <div id="foto-preview" class="photo-preview">${p.foto?`<img src="${p.foto}"/>`:'📷 Adicionar foto da joia'}</div>
+    <div id="foto-preview" class="photo-preview">${p.foto?`<img src="${p.foto}"/>`:'📷 Sem imagem'}</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
       <label class="btn btn-outline btn-sm" style="cursor:pointer">📷 Escolher foto<input id="f-foto" type="file" accept="image/*" style="display:none" onchange="previewProdutoFoto(this)"/></label>
       <button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">🗑️ Retirar imagem</button>
     </div>
-    <div class="modal-msg" style="margin-bottom:.8rem">A foto fica salva no Firebase e pode ter até 5 MB.</div>
+    <div class="modal-msg" style="margin-bottom:.8rem">A foto pode ter até 5 MB.</div>
     <div class="field"><label>Nome</label><input id="f-nome" value="${esc(p.nome||'')}"/></div>
     <div class="row-2"><div class="field"><label>SKU / Código</label><input id="f-sku" value="${esc(p.sku||'')}" placeholder="Ex.: AN001"/></div><div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div></div>
     <div class="row-2"><div class="field"><label>Preço</label><input id="f-preco" type="number" step="0.01" min="0" value="${p.preco??''}"/></div>
     <div class="field"><label>Custo</label><input id="f-custo" type="number" step="0.01" min="0" value="${p.custo??''}"/></div></div>
     <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>`,async()=>{
-    const nome=val('f-nome'), preco=+val('f-preco');
-    if(!nome||!val('f-preco')||!(preco>=0)){ modalError('Informe nome e preço.'); return false; }
+    const nome=val('f-nome'), precoTexto=val('f-preco'), preco=Number(precoTexto);
+    if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
-      let produtoId=p.id;
-      if(!produtoId) produtoId=col('produtos').doc().id;
+      let produtoId=p.id || col('produtos').doc().id;
+      // Primeiro salva os dados do produto no Firestore.
+      // Assim, se houver algum problema no Storage, o produto não é perdido.
       let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
-      if(window.__produtoFotoFile){ const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId); foto=up.url; fotoPath=up.path; }
-      const payload={nome,sku:val('f-sku'),preco,custo:+val('f-custo')||0,estoque:+val('f-est')||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
-      await col('produtos').doc(produtoId).set(p.id?payload:{...payload,createdAt:TS()},{merge:true});
+      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
+      if(!p.id) payload.createdAt=TS();
+      await col('produtos').doc(produtoId).set(payload,{merge:true});
+
+      // Depois envia a nova foto, se houver.
+      if(window.__produtoFotoFile){
+        try{
+          const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
+          await col('produtos').doc(produtoId).set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
+        }catch(photoErr){
+          console.error('Erro ao enviar foto:',photoErr);
+          toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
+        }
+      }
       window.__produtoFotoFile=null; window.__removerFoto=false;
       return true;
-    }catch(ex){ modalError(ex.message||'Não foi possível salvar a foto.'); return false; }
+    }catch(ex){
+      console.error('Erro ao salvar produto:',ex);
+      modalError(ex?.message || ex?.userMsg || mapErr(ex?.code) || 'Não foi possível salvar o produto.');
+      return false;
+    }
   });
 }
 function previewProdutoFoto(input){
