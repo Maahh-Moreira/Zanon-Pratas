@@ -242,7 +242,6 @@ td{padding:.85rem 1rem}
       <div class="nav-group-title">Operação</div>
       <button class="nav-item" data-page="produtos" onclick="go('produtos')"><span class="ico">◆</span><span>Produtos</span></button>
       <button class="nav-item" data-page="vendas" onclick="go('vendas')"><span class="ico">▲</span><span>Vendas</span></button>
-      <button class="nav-item" data-page="pedidos" onclick="go('pedidos')"><span class="ico">❖</span><span>Pedidos</span></button>
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
       <button class="nav-item" data-page="mural" onclick="go('mural')"><span class="ico">▤</span><span>Mural de avisos</span></button>
       <div class="nav-group-title">Financeiro</div>
@@ -281,9 +280,9 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
-const NAMES = ['produtos','clientes','vendas','compras','gastos','pedidos','reinvestimentos','avisos'];
+const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
 let USER = null, PAGE = 'dashboard';
-let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[], pedidos:[], reinvestimentos:[], avisos:[] };
+let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[], reinvestimentos:[], avisos:[] };
 
 const col = n => db.collection('users').doc(USER.uid).collection(n);
 const money = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -345,7 +344,7 @@ async function resetPass(){
   catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
 }
 function confirmLogout(){ openModal('Sair da conta','<p class="modal-msg">Tem certeza que deseja sair?</p>',async()=>{await auth.signOut();return true;},{saveLabel:'Sair',danger:true,silent:true,noReload:true}); }
-function logoutUI(){ USER=null; DATA={produtos:[],clientes:[],vendas:[],compras:[],gastos:[],pedidos:[],reinvestimentos:[],avisos:[]}; document.getElementById('app').classList.add('hidden'); document.getElementById('auth').classList.remove('hidden'); showLogin(); document.getElementById('login-pass').value=''; }
+function logoutUI(){ USER=null; DATA={produtos:[],clientes:[],vendas:[],compras:[],gastos:[],reinvestimentos:[],avisos:[]}; document.getElementById('app').classList.add('hidden'); document.getElementById('auth').classList.remove('hidden'); showLogin(); document.getElementById('login-pass').value=''; }
 
 async function loadAll(){
   const res=await Promise.all(NAMES.map(async n=>{
@@ -414,9 +413,9 @@ function openModal(title, body, onSave, opts={}){
 function go(page){
   PAGE=page;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',mural:'Mural de avisos',compras:'Compras / Estoque',gastos:'Gastos',pedidos:'Pedidos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
+  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',mural:'Mural de avisos',compras:'Compras / Estoque',gastos:'Gastos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
   document.getElementById('page-title').textContent=titles[page];
-  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,mural:renderMural,compras:renderCompras,gastos:renderGastos,pedidos:renderPedidos,reinvest:renderReinvest,receber:renderReceber};
+  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,mural:renderMural,compras:renderCompras,gastos:renderGastos,reinvest:renderReinvest,receber:renderReceber};
   document.getElementById('content').innerHTML=r[page]();
 }
 
@@ -469,7 +468,7 @@ function renderDashboard(){
   <div class="kpi-grid" style="margin-top:1rem">
     <div class="kpi"><div class="kpi-label">🔄 Reserva</div><div class="kpi-value">${money(reserva)}</div><div class="kpi-sub">Para novas joias</div></div>
     <div class="kpi"><div class="kpi-label">💰 Recebido</div><div class="kpi-value">${money(recebido)}</div><div class="kpi-sub">Vendas já pagas</div></div>
-    <div class="kpi"><div class="kpi-label">👥 Clientes</div><div class="kpi-value">${DATA.clientes.length}</div><div class="kpi-sub">${DATA.pedidos.filter(aberto).length} pedido(s) em aberto</div></div>
+    <div class="kpi"><div class="kpi-label">👥 Clientes</div><div class="kpi-value">${DATA.clientes.length}</div><div class="kpi-sub">${DATA.avisos.filter(a=>(a.status||'Aguardando')!=='Encerrado').length} aviso(s) ativo(s)</div></div>
     <div class="kpi"><div class="kpi-label">📦 Produtos</div><div class="kpi-value">${DATA.produtos.length}</div><div class="kpi-sub">Itens cadastrados</div></div>
   </div>
   <div class="card"><div class="card-header"><h3>Últimas vendas</h3><button class="btn btn-outline btn-sm" onclick="go('vendas')">Ver todas</button></div>
@@ -478,7 +477,7 @@ function renderDashboard(){
   </tbody></table></div></div>`;
 }
 function renderSalesChart(){ const now=new Date(today()+'T12:00:00'); const arr=[]; for(let i=5;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1,12); const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; const totalv=DATA.vendas.filter(v=>String(v.data||'').slice(0,7)===key).reduce((s,v)=>s+Number(v.valor||0),0); arr.push({label:d.toLocaleDateString('pt-BR',{month:'short'}).replace('.',''),v:totalv}); } const max=Math.max(1,...arr.map(x=>x.v)); return `<div class="chart-bars">${arr.map(x=>`<div class="chart-col"><div class="chart-value">${x.v?money(x.v).replace('R$','R$'):''}</div><div class="chart-bar" style="height:${Math.max(2,x.v/max*125)}px"></div><div class="chart-label">${x.label}</div></div>`).join('')}</div>`; }
-function exportarBackup(){ const data={versao:2,exportadoEm:new Date().toISOString(),colecoes:{produtos:DATA.produtos,clientes:DATA.clientes,vendas:DATA.vendas,compras:DATA.compras,gastos:DATA.gastos,pedidos:DATA.pedidos,reinvestimentos:DATA.reinvestimentos}}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`zm-pratas-backup-${today()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast('Backup baixado'); }
+function exportarBackup(){ const data={versao:2,exportadoEm:new Date().toISOString(),colecoes:{produtos:DATA.produtos,clientes:DATA.clientes,vendas:DATA.vendas,compras:DATA.compras,gastos:DATA.gastos,reinvestimentos:DATA.reinvestimentos,avisos:DATA.avisos}}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`zm-pratas-backup-${today()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast('Backup baixado'); }
 function importarBackup(){ const input=document.createElement('input'); input.type='file'; input.accept='.json,application/json'; input.onchange=async()=>{ const f=input.files?.[0]; if(!f)return; try{ const data=JSON.parse(await f.text()); const c=data.colecoes||data; const names=NAMES.filter(n=>Array.isArray(c[n])); if(!names.length)throw Error('Arquivo sem dados reconhecidos.'); openModal('Restaurar backup',`<p class="modal-msg">Serão importados <strong>${names.map(n=>`${n}: ${c[n].length}`).join(' · ')}</strong>.</p><p class="modal-msg" style="margin-top:.5rem">Registros existentes não serão apagados; os registros do backup serão adicionados com os mesmos IDs quando possível.</p>`,async()=>{ for(const n of names){ for(const item of c[n]){ if(!item.id)continue; const copy={...item}; delete copy.id; await col(n).doc(item.id).set(copy,{merge:true}); } } await loadAll(); go(PAGE); return true; },{okMsg:'Backup restaurado'}); }catch(e){showNotice('Não foi possível ler o backup.','error');} }; input.click(); }
 
 /* ---------- Produtos ---------- */
@@ -709,51 +708,6 @@ function delCompra(id){
     return true;
   },{saveLabel:'Excluir',danger:true,okMsg:'Compra excluída'});
 }
-
-/* ---------- Pedidos ---------- */
-const STATUS=['Pendente','Em produção','Pronto','Entregue','Cancelado'];
-const aberto=p=>!['Entregue','Cancelado'].includes(p.status);
-function statusBadge(p){
-  const atraso=aberto(p)&&p.prazo&&p.prazo<today();
-  const cls=atraso?'':(p.status==='Entregue'||p.status==='Pronto')?'ok':p.status==='Cancelado'?'':'warn';
-  return `<span class="badge ${cls}">${esc(p.status)}${atraso?' · atrasado':''}</span>`;
-}
-function renderPedidos(){
-  const lista=[...DATA.pedidos].sort((a,b)=>(aberto(b)-aberto(a))||String(a.prazo||'9').localeCompare(String(b.prazo||'9')));
-  return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'ped-table')"/><button class="btn btn-primary" onclick="modalPedido()">+ Novo pedido</button></div>
-  <div class="card"><div class="table-wrap"><table id="ped-table"><thead><tr><th>Prazo</th><th>Cliente</th><th>Pedido</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>
-  ${lista.map(p=>`<tr><td>${fmtDate(p.prazo)}</td><td>${esc(nomeCli(p))}</td>
-  <td>${esc(p.desc)}${p.obs?`<div class="meta">${esc(p.obs)}</div>`:''}</td><td>${money(p.valor)}</td>
-  <td>${statusBadge(p)}<br><select style="margin-top:.3rem;height:28px;border:1px solid var(--border);border-radius:7px;background:var(--surface-2);color:var(--ink)" onchange="setStatus('${p.id}',this.value)">${STATUS.map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></td>
-  <td><button class="btn btn-outline btn-sm" onclick="modalPedido('${p.id}')">Editar</button> <button class="btn btn-danger btn-sm" onclick="delDoc('pedidos','${p.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Nenhum pedido</td></tr>'}
-  </tbody></table></div></div>`;
-}
-function modalPedido(id){
-  const p=byId('pedidos',id)||{};
-  if(!DATA.clientes.length){ showNotice('Cadastre pelo menos 1 cliente.','info'); return; }
-  const oc=DATA.clientes.map(c=>`<option value="${c.id}" ${c.id===p.clienteId?'selected':''}>${esc(c.nome)}</option>`).join('');
-  const os=STATUS.map(s=>`<option ${s===(p.status||'Pendente')?'selected':''}>${s}</option>`).join('');
-  openModal(p.id?'Editar pedido':'Novo pedido',`
-    <div class="field"><label>Cliente</label><select id="f-cli">${oc}</select></div>
-    <div class="field"><label>Pedido (o que o cliente pediu)</label><input id="f-desc" value="${esc(p.desc||'')}" placeholder="Ex.: Anel de prata aro 18 com nome"/></div>
-    <div class="row-2"><div class="field"><label>Valor</label><input id="f-val" type="number" step="0.01" min="0" value="${p.valor??''}"/></div>
-    <div class="field"><label>Status</label><select id="f-st">${os}</select></div></div>
-    <div class="row-2"><div class="field"><label>Data do pedido</label><input id="f-data" type="date" value="${p.data||today()}"/></div>
-    <div class="field"><label>Prazo de entrega</label><input id="f-prazo" type="date" value="${p.prazo||''}"/></div></div>
-    <div class="field"><label>Observações</label><input id="f-obs" value="${esc(p.obs||'')}"/></div>`,async()=>{
-    const clienteId=val('f-cli'), desc=val('f-desc');
-    if(!clienteId||!desc){ modalError('Informe cliente e pedido.'); return false; }
-    const payload={clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',desc,valor:+val('f-val')||0,status:val('f-st')||'Pendente',data:val('f-data')||today(),prazo:val('f-prazo'),obs:val('f-obs'),updatedAt:TS()};
-    if(p.id) await col('pedidos').doc(p.id).set(payload,{merge:true});
-    else await col('pedidos').add({...payload,createdAt:TS()});
-    return true;
-  });
-}
-async function setStatus(id,status){
-  try{ await col('pedidos').doc(id).update({status,updatedAt:TS()}); const p=byId('pedidos',id); if(p) p.status=status; go('pedidos'); toast('Status atualizado'); }
-  catch(ex){ showNotice(mapErr(ex.code),'error'); }
-}
-
 
 /* ---------- Mural de avisos para clientes ---------- */
 function avisoStatusBadge(status){
