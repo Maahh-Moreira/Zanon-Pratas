@@ -190,6 +190,10 @@ td{padding:.85rem 1rem}
 .modal-overlay{align-items:flex-end;padding:0}.modal{width:100%;max-width:none;border-radius:16px 16px 0 0;max-height:92vh}
 }
 @media(max-width:480px){.kpi-grid{grid-template-columns:1fr 1fr}.product-grid{grid-template-columns:1fr}.product-body{align-items:center}.product-img{width:92px;height:92px;flex-basis:92px}.quick-actions{grid-template-columns:1fr}.kpi{padding:.9rem}.kpi-value{font-size:1.3rem}.kpi-label{font-size:.61rem}}
+
+.notice-intro{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.3rem 1.4rem;margin-bottom:1rem;border-radius:16px;background:linear-gradient(120deg,var(--blue-dark),#2d5e9c);color:#fff}.notice-intro h2{font-size:1.25rem;margin:.25rem 0 .35rem}.notice-intro p{font-size:.84rem;opacity:.85;margin:0;max-width:540px}.notice-eyebrow{font-size:.65rem;letter-spacing:.14em;opacity:.8;font-weight:700}.notice-intro .btn{background:#fff;color:#17365d;white-space:nowrap}.notice-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem;margin-bottom:1.2rem}.notice-stat{padding:1rem;display:flex;flex-direction:column;gap:.5rem}.notice-stat span{font-size:.76rem;color:var(--muted)}.notice-stat strong{font-size:1.7rem}.notice-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:.85rem}.notice-card{display:flex;gap:.9rem;padding:1rem;align-items:flex-start}.notice-gem{width:46px;height:46px;flex:0 0 46px;border-radius:12px;display:grid;place-items:center;background:var(--blue-soft);font-size:1.5rem}.notice-main{min-width:0;flex:1}.notice-card-top{display:flex;align-items:center;justify-content:space-between;gap:.5rem}.notice-card-top h3{font-size:.95rem;margin:0}.notice-client{font-size:.8rem;font-weight:600;margin-top:.35rem}.notice-notes{font-size:.78rem;color:var(--muted);margin:.45rem 0}.notice-meta{font-size:.7rem;color:var(--muted);margin:.5rem 0}.notice-actions{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-top:.65rem}.notice-actions select{max-width:130px;height:30px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);font-size:.72rem;padding:0 .35rem}.badge.info{background:#dbeafe;color:#1d4ed8}
+@media(max-width:600px){.notice-intro{align-items:flex-start;flex-direction:column}.notice-stats{gap:.45rem}.notice-stat{padding:.7rem}.notice-stat strong{font-size:1.35rem}.notice-stat span{font-size:.65rem}.notice-list{grid-template-columns:1fr}.notice-card{padding:.8rem}.notice-actions .btn{flex:1}}
+
 </style>
 </head>
 <body>
@@ -240,6 +244,7 @@ td{padding:.85rem 1rem}
       <button class="nav-item" data-page="vendas" onclick="go('vendas')"><span class="ico">▲</span><span>Vendas</span></button>
       <button class="nav-item" data-page="pedidos" onclick="go('pedidos')"><span class="ico">❖</span><span>Pedidos</span></button>
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
+      <button class="nav-item" data-page="mural" onclick="go('mural')"><span class="ico">▤</span><span>Mural de avisos</span></button>
       <div class="nav-group-title">Financeiro</div>
       <button class="nav-item" data-page="compras" onclick="go('compras')"><span class="ico">◇</span><span>Compras</span></button>
       <button class="nav-item" data-page="receber" onclick="go('receber')"><span class="ico">$</span><span>A Receber</span></button>
@@ -276,9 +281,9 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
-const NAMES = ['produtos','clientes','vendas','compras','gastos','pedidos','reinvestimentos'];
+const NAMES = ['produtos','clientes','vendas','compras','gastos','pedidos','reinvestimentos','avisos'];
 let USER = null, PAGE = 'dashboard';
-let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[], pedidos:[], reinvestimentos:[] };
+let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[], pedidos:[], reinvestimentos:[], avisos:[] };
 
 const col = n => db.collection('users').doc(USER.uid).collection(n);
 const money = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -340,7 +345,7 @@ async function resetPass(){
   catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
 }
 function confirmLogout(){ openModal('Sair da conta','<p class="modal-msg">Tem certeza que deseja sair?</p>',async()=>{await auth.signOut();return true;},{saveLabel:'Sair',danger:true,silent:true,noReload:true}); }
-function logoutUI(){ USER=null; DATA={produtos:[],clientes:[],vendas:[],compras:[],gastos:[],pedidos:[],reinvestimentos:[]}; document.getElementById('app').classList.add('hidden'); document.getElementById('auth').classList.remove('hidden'); showLogin(); document.getElementById('login-pass').value=''; }
+function logoutUI(){ USER=null; DATA={produtos:[],clientes:[],vendas:[],compras:[],gastos:[],pedidos:[],reinvestimentos:[],avisos:[]}; document.getElementById('app').classList.add('hidden'); document.getElementById('auth').classList.remove('hidden'); showLogin(); document.getElementById('login-pass').value=''; }
 
 async function loadAll(){
   const res=await Promise.all(NAMES.map(async n=>{
@@ -409,9 +414,9 @@ function openModal(title, body, onSave, opts={}){
 function go(page){
   PAGE=page;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',compras:'Compras / Estoque',gastos:'Gastos',pedidos:'Pedidos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
+  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',mural:'Mural de avisos',compras:'Compras / Estoque',gastos:'Gastos',pedidos:'Pedidos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
   document.getElementById('page-title').textContent=titles[page];
-  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,compras:renderCompras,gastos:renderGastos,pedidos:renderPedidos,reinvest:renderReinvest,receber:renderReceber};
+  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,mural:renderMural,compras:renderCompras,gastos:renderGastos,pedidos:renderPedidos,reinvest:renderReinvest,receber:renderReceber};
   document.getElementById('content').innerHTML=r[page]();
 }
 
@@ -747,6 +752,59 @@ function modalPedido(id){
 async function setStatus(id,status){
   try{ await col('pedidos').doc(id).update({status,updatedAt:TS()}); const p=byId('pedidos',id); if(p) p.status=status; go('pedidos'); toast('Status atualizado'); }
   catch(ex){ showNotice(mapErr(ex.code),'error'); }
+}
+
+
+/* ---------- Mural de avisos para clientes ---------- */
+function avisoStatusBadge(status){
+  const cls=status==='Avisada'?'ok':status==='Chegou'?'warn':status==='Encerrado'?'':'info';
+  return `<span class="badge ${cls}">${esc(status||'Aguardando')}</span>`;
+}
+function renderMural(){
+  const ativos=DATA.avisos.filter(a=>(a.status||'Aguardando')!=='Encerrado');
+  const esperando=ativos.filter(a=>(a.status||'Aguardando')==='Aguardando').length;
+  const chegou=ativos.filter(a=>a.status==='Chegou').length;
+  const avisar=ativos.filter(a=>a.status==='Avisada').length;
+  const sorted=[...DATA.avisos].sort((a,b)=>{
+    const rank={'Chegou':0,'Aguardando':1,'Avisada':2,'Encerrado':3};
+    return (rank[a.status||'Aguardando']??1)-(rank[b.status||'Aguardando']??1) || String(b.createdAt?.seconds||0).localeCompare(String(a.createdAt?.seconds||0));
+  });
+  return `<div class="notice-intro"><div><div class="notice-eyebrow">ZM PRATAS · RELACIONAMENTO</div><h2>Não deixe nenhuma cliente esperando 💙</h2><p>Cadastre o que cada pessoa quer e marque quando a peça chegar ou quando você avisar.</p></div><button class="btn btn-primary" onclick="modalAviso()">+ Novo aviso</button></div>
+  <div class="notice-stats"><div class="card notice-stat"><span>⏳ Aguardando peça</span><strong>${esperando}</strong></div><div class="card notice-stat"><span>💎 Peça chegou</span><strong>${chegou}</strong></div><div class="card notice-stat"><span>💬 Já avisadas</span><strong>${avisar}</strong></div></div>
+  <div class="toolbar"><input class="search" placeholder="Buscar cliente ou produto..." oninput="filterMural(this.value)"/><select class="search" id="mural-filter" onchange="filterMural(document.querySelector('.toolbar .search').value)" style="width:180px"><option value="Todos">Todos os status</option><option>Aguardando</option><option>Chegou</option><option>Avisada</option><option>Encerrado</option></select></div>
+  <div class="notice-list" id="mural-list">${sorted.map(avisoCard).join('')||'<div class="card empty">Ainda não há avisos. Clique em “Novo aviso” para cadastrar a primeira cliente.</div>'}</div>`;
+}
+function avisoCard(a){
+  const c=byId('clientes',a.clienteId), nome=c?.nome||a.clienteNome||'Cliente';
+  const tel=String(c?.telefone||a.telefone||'').replace(/\D/g,'');
+  const status=a.status||'Aguardando';
+  const wa=tel?`https://wa.me/55${tel}?text=${encodeURIComponent(`Olá ${nome}! Passando para avisar sobre ${a.item||'a peça'} que você pediu para acompanhar na ZM Pratas. 💙`)}`:'';
+  return `<article class="card notice-card" data-search="${esc((nome+' '+(a.item||'')+' '+(a.obs||'')).toLowerCase())}" data-status="${esc(status)}"><div class="notice-gem">💍</div><div class="notice-main"><div class="notice-card-top"><h3>${esc(a.item||'Peça desejada')}</h3>${avisoStatusBadge(status)}</div><div class="notice-client">${esc(nome)}${tel?` · ${esc(c?.telefone||a.telefone||'')}`:''}</div>${a.obs?`<p class="notice-notes">${esc(a.obs)}</p>`:''}<div class="notice-meta">Solicitado em ${fmtDate(a.data||'')} ${a.dataPrevista?' · acompanhar até '+fmtDate(a.dataPrevista):''}</div><div class="notice-actions"><select aria-label="Status do aviso" onchange="setAvisoStatus('${a.id}',this.value)"><option ${status==='Aguardando'?'selected':''}>Aguardando</option><option ${status==='Chegou'?'selected':''}>Chegou</option><option ${status==='Avisada'?'selected':''}>Avisada</option><option ${status==='Encerrado'?'selected':''}>Encerrado</option></select>${wa?`<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="${wa}">Avisar no WhatsApp</a>`:''}<button class="btn btn-outline btn-sm" onclick="modalAviso('${a.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="delDoc('avisos','${a.id}')">Excluir</button></div></div></article>`;
+}
+function filterMural(q=''){
+  const status=document.getElementById('mural-filter')?.value||'Todos';
+  document.querySelectorAll('#mural-list .notice-card').forEach(el=>{
+    const match=el.dataset.search.includes(String(q||'').toLowerCase());
+    el.style.display=match&&(status==='Todos'||el.dataset.status===status)?'flex':'none';
+  });
+}
+function modalAviso(id){
+  const a=byId('avisos',id)||{};
+  if(!DATA.clientes.length){showNotice('Cadastre a cliente na tela Clientes antes de criar um aviso.','info');return;}
+  const oc=DATA.clientes.map(c=>`<option value="${c.id}" ${c.id===(a.clienteId||'')?'selected':''}>${esc(c.nome)}${c.telefone?' · '+esc(c.telefone):''}</option>`).join('');
+  const statuses=['Aguardando','Chegou','Avisada','Encerrado'].map(s=>`<option ${s===(a.status||'Aguardando')?'selected':''}>${s}</option>`).join('');
+  openModal(a.id?'Editar aviso':'Novo aviso para cliente',`<div class="field"><label>Cliente</label><select id="f-aviso-cli">${oc}</select></div><div class="field"><label>O que ela quer?</label><input id="f-aviso-item" value="${esc(a.item||'')}" placeholder="Ex.: anel de prata, aro 18"/></div><div class="row-2"><div class="field"><label>Data do pedido</label><input id="f-aviso-data" type="date" value="${a.data||today()}"/></div><div class="field"><label>Data para acompanhar (opcional)</label><input id="f-aviso-prev" type="date" value="${a.dataPrevista||''}"/></div></div><div class="field"><label>Observações</label><textarea id="f-aviso-obs" rows="3" placeholder="Modelo, tamanho, cor ou outro detalhe">${esc(a.obs||'')}</textarea></div><div class="field"><label>Status</label><select id="f-aviso-status">${statuses}</select></div>`,async()=>{
+    const clienteId=val('f-aviso-cli'), item=val('f-aviso-item');
+    if(!clienteId||!item){modalError('Escolha a cliente e informe qual peça ela deseja.');return false;}
+    const c=byId('clientes',clienteId);
+    const payload={clienteId,clienteNome:c?.nome||'',telefone:c?.telefone||'',item,data:val('f-aviso-data')||today(),dataPrevista:val('f-aviso-prev'),obs:val('f-aviso-obs'),status:val('f-aviso-status')||'Aguardando',updatedAt:TS()};
+    if(a.id) await col('avisos').doc(a.id).set(payload,{merge:true}); else await col('avisos').add({...payload,createdAt:TS()});
+    return true;
+  },{okMsg:'Aviso salvo no mural'});
+}
+async function setAvisoStatus(id,status){
+  try{await col('avisos').doc(id).update({status,updatedAt:TS()});const a=byId('avisos',id);if(a)a.status=status;go('mural');toast('Status atualizado');}
+  catch(ex){showNotice(ex?.message||mapErr(ex.code),'error');go('mural');}
 }
 
 /* ---------- Contas a Receber ---------- */
