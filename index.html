@@ -827,9 +827,9 @@ function modalReinvestimento(){
     <div class="modal-msg">Caixa livre antes deste registro: <strong>${money(caixaLivre())}</strong></div>`,async()=>{
       const retirada=+val('f-retirada')||0, reinvestimento=+val('f-reinv')||0;
       if(retirada<=0 && reinvestimento<=0){ modalError('Informe um valor para retirada ou reinvestimento.'); return false; }
-      const valor=retirada+reinvestimento;
-      const caixa=caixaLivre();
-      if(valor>caixa){ modalError(`O valor informado (${money(valor)}) é maior que o caixa livre (${money(caixa)}).`); return false; }
+      // Registrar a movimentação real mesmo quando ela ultrapassa o caixa calculado.
+      // O saldo poderá ficar negativo e mostrar a diferença a conferir, em vez de impedir
+      // que o usuário registre um dinheiro que já separou/retirou.
       await col('reinvestimentos').add({data:val('f-data')||today(),retirada,reinvestimento,obs:val('f-obs'),createdAt:TS()});
       return true;
     },{okMsg:'Registro salvo'});
@@ -854,7 +854,7 @@ function renderReinvest(){
     <div class="hero-value">${money(livre)}</div>
     <div class="hero-eq">Recebido ${money(rec)} − Compras ${money(ct)} − Gastos ${money(gt)} − Retiradas ${money(totalRetiradas())} − Reservado ${money(totalSeparadoReinvestimento())}</div>
     ${pend>0?`<div class="hero-eq">Ainda a receber em parcelas: ${money(pend)} (não incluído no caixa)</div>`:''}
-    ${livre<0?'<div class="hero-eq">⚠️ As retiradas e reservas registradas estão acima do caixa disponível.</div>':''}
+    ${livre<0?`<div class="hero-eq">⚠️ Há uma diferença de ${money(Math.abs(livre))} entre as movimentações registradas e o caixa recebido. Confira valores ainda não recebidos, gastos e retiradas.</div>`:''}
   </div>
   <div class="toolbar">
     <div style="display:flex;gap:.4rem;flex-wrap:wrap">${tabs.map(([t,l])=>`<button class="btn btn-sm ${RANGE.tipo===t?'btn-primary':'btn-outline'}" onclick="setRange('${t}')">${l}</button>`).join('')}</div>
