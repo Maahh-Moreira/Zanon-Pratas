@@ -283,7 +283,14 @@ const storage = firebase.storage();
 // Supabase é usado SOMENTE para armazenar as fotos; dados e autenticação continuam no Firebase.
 const ZM_SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
 const ZM_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
-const zmSupabaseStorage = window.supabase.createClient(ZM_SUPABASE_URL, ZM_SUPABASE_PUBLISHABLE_KEY);
+const zmSupabaseStorage = window.supabase.createClient(ZM_SUPABASE_URL, ZM_SUPABASE_PUBLISHABLE_KEY, {
+  // Envia o token do Firebase ao Supabase. Requer habilitar Firebase em Supabase > Authentication > Third-Party Auth.
+  accessToken: async () => {
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) throw new Error('Você precisa estar logada para enviar fotos.');
+    return await currentUser.getIdToken();
+  }
+});
 
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
@@ -552,8 +559,14 @@ function modalProduto(id){
           const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
           await produtoRef.set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
         }catch(photoErr){
-          console.error('Erro ao enviar foto:',photoErr);
-          toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
+          console.error('Erro ao enviar foto ao Supabase Storage:',photoErr);
+          const raw=String(photoErr?.message||photoErr||'Erro desconhecido');
+          let friendly='A foto não foi enviada ao Supabase. O produto foi salvo.';
+          if(/row-level security|violates row-level|permission denied|not authorized|unauthorized|JWT|token/i.test(raw)) friendly='O Supabase recusou a autorização. Ative a integração Firebase em Supabase → Authentication → Third-Party Auth e mantenha as políticas restritas ao bucket catalogo-produtos.';
+          else if(/bucket not found/i.test(raw)) friendly='O bucket catalogo-produtos não foi encontrado no Supabase.';
+          else if(/payload too large|maximum.*size|exceeded the maximum/i.test(raw)) friendly='A imagem excede o limite de tamanho permitido pelo Supabase.';
+          toast(friendly);
+          showNotice(friendly+' Detalhe técnico: '+raw,'error');
         }
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
