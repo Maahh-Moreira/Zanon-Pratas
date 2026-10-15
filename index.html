@@ -283,9 +283,26 @@ const auth = {
   },
   async signOut(){const {error}=await supabase.auth.signOut();if(error)throw mapSupabaseError(error)},
   onAuthStateChanged(callback){
-    supabase.auth.getSession().then(({data})=>callback(data.session?.user?adaptUser(data.session.user):null));
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>callback(session?.user?adaptUser(session.user):null));
-    return ()=>subscription.unsubscribe();
+    let lastUserId = null;
+    let active = true;
+    const notify = user => {
+      if(!active) return;
+      const adapted = user ? adaptUser(user) : null;
+      const nextId = adapted?.uid || null;
+      if(nextId === lastUserId) return;
+      lastUserId = nextId;
+      // Não executar carregamentos assíncronos dentro do callback interno do Supabase Auth.
+      // Isso evita bloqueios da trava de autenticação durante login/renovação da sessão.
+      Promise.resolve().then(() => { if(active) callback(adapted); });
+    };
+    supabase.auth.getSession().then(({data,error})=>{
+      if(error) console.error('Erro ao recuperar sessão:',error);
+      notify(data?.session?.user || null);
+    }).catch(error=>console.error('Erro ao recuperar sessão:',error));
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
+      notify(session?.user || null);
+    });
+    return ()=>{ active=false; subscription.unsubscribe(); };
   }
 };
 function adaptUser(u){return {...u,uid:u.id,displayName:u.user_metadata?.display_name||u.user_metadata?.name||'',email:u.email};}
@@ -359,24 +376,56 @@ function toggleTheme(){ const d=document.documentElement.classList.toggle('dark'
 
 async function doRegister(e){
   e.preventDefault();
-  const err=document.getElementById('reg-error'); err.classList.remove('show');
+  const err=document.getElementById('reg-error');
+  const btn=document.getElementById('btn-reg');
+  err.classList.remove('show','ok');
   const name=val('reg-name'), email=val('reg-email').toLowerCase(), pass=val('reg-pass');
   if(pass!==val('reg-confirm')){ err.textContent='As senhas não coincidem.'; err.classList.add('show'); return false; }
-  const btn=document.getElementById('btn-reg'); btn.disabled=true;
+  btn.disabled=true;
+  const labelOriginal=btn.textContent;
+  btn.textContent='Criando conta...';
   try{
     const {data,error}=await supabase.auth.signUp({email,password:pass,options:{data:{display_name:name}}});
     if(error) throw mapSupabaseError(error);
-    if(!data.session){err.textContent='Conta criada. Confirme seu e-mail para entrar.';err.classList.add('show','ok');return false;}
-  }catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
-  btn.disabled=false; return false;
+    if(data.session){
+      err.textContent='Conta criada! Entrando no sistema...';
+      err.classList.add('show','ok');
+      // O evento de autenticação abrirá o aplicativo.
+    }else{
+      err.textContent='Conta criada. Confirme seu e-mail pelo link enviado antes de entrar.';
+      err.classList.add('show','ok');
+    }
+  }catch(ex){
+    console.error('Erro ao criar conta:',ex);
+    err.textContent=ex?.message || mapErr(ex?.code);
+    err.classList.add('show');
+  }finally{
+    btn.disabled=false;
+    btn.textContent=labelOriginal || 'Criar conta';
+  }
+  return false;
 }
 async function doLogin(e){
   e.preventDefault();
-  const err=document.getElementById('login-error'); err.classList.remove('show','ok');
-  const btn=document.getElementById('btn-login'); btn.disabled=true;
-  try{ await auth.signInWithEmailAndPassword(val('login-email').toLowerCase(), val('login-pass')); }
-  catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
-  btn.disabled=false; return false;
+  const err=document.getElementById('login-error');
+  const btn=document.getElementById('btn-login');
+  err.classList.remove('show','ok');
+  btn.disabled=true;
+  const labelOriginal=btn.textContent;
+  btn.textContent='Entrando...';
+  try{
+    await auth.signInWithEmailAndPassword(val('login-email').toLowerCase(), val('login-pass'));
+    err.textContent='Login confirmado. Abrindo o sistema...';
+    err.classList.add('show','ok');
+  }catch(ex){
+    console.error('Erro ao entrar:',ex);
+    err.textContent=ex?.message || mapErr(ex?.code);
+    err.classList.add('show');
+  }finally{
+    btn.disabled=false;
+    btn.textContent=labelOriginal || 'Entrar';
+  }
+  return false;
 }
 async function resetPass(){
   const err=document.getElementById('login-error'); const email=val('login-email').toLowerCase();
@@ -405,7 +454,7 @@ async function enterApp(){
   try{ await loadAll(); go('dashboard'); }
   catch(ex){ showNotice(mapErr(ex.code||''),'error'); document.getElementById('content').innerHTML='<div class="empty">Erro ao carregar dados</div>'; }
 }
-auth.onAuthStateChanged(async u=>{ if(u){ USER=u; await enterApp(); } else logoutUI(); });
+auth.onAuthStateChanged(u=>{ if(u){ USER=u; enterApp().catch(ex=>{ console.error('Erro ao abrir o sistema:',ex); showNotice(ex?.message || 'Não foi possível carregar os dados.','error'); }); } else logoutUI(); });
 
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 function modalError(msg){ const el=document.getElementById('modal-error'); if(!el)return; el.textContent=msg; el.classList.add('show'); }
@@ -1032,8 +1081,3 @@ if(localStorage.getItem(THEME_KEY)==='dark'){ document.documentElement.classList
 </script>
 </body>
 </html>
-
-
-
-
-
