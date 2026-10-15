@@ -291,24 +291,24 @@ const auth = {
 function adaptUser(u){return {...u,uid:u.id,displayName:u.user_metadata?.display_name||u.user_metadata?.name||'',email:u.email};}
 function mapSupabaseError(e){const map={'User already registered':'auth/email-already-in-use','Invalid login credentials':'auth/invalid-credential','Password should be at least 6 characters':'auth/weak-password'};return Object.assign(new Error(e.message),{code:map[e.message]||e.code||'unknown'});}
 const TS = () => new Date().toISOString();
-const LEGACY_FIREBASE_UID = 'HNNimEpUXpZaJG7aRNYwE1JcL5p1';
+const DATA_NAMESPACE = 'users/HNNimEpUXpZaJG7aRNYwE1JcL5p1';
 const TABLE_ID = 'Document ID';
-// Compatibilidade com a estrutura antiga: IDs locais são convertidos para o caminho Firebase completo.
-// As tabelas precisam ter uma coluna única chamada exatamente "Document ID".
-function legacyPath(table,id=''){return `/users/${LEGACY_FIREBASE_UID}/${table}/${id}`;}
-function localId(table,path){const prefix=`/users/${LEGACY_FIREBASE_UID}/${table}/`;return String(path||'').startsWith(prefix)?String(path).slice(prefix.length):String(path||'');}
+// Os registros são armazenados no Supabase usando a coluna única "Document ID".
+// Mantém o namespace dos registros já existentes no Supabase durante a migração; não conecta ao Firebase.
+function recordPath(table,id=''){return `/${DATA_NAMESPACE}/${table}/${id}`;}
+function localId(table,path){const prefix=`/${DATA_NAMESPACE}/${table}/`;return String(path||'').startsWith(prefix)?String(path).slice(prefix.length):String(path||'');}
 function dbError(error){if(!error)return error;return Object.assign(new Error(error.message||'Erro no Supabase'),{code:error.code==='42501'?'permission-denied':error.code||'unknown'});}
 function queryBuilder(table){
   let sortCol=null,sortDesc=false;
   const q={orderBy(col,dir='asc'){sortCol=col;sortDesc=dir==='desc';return q;},async get(){
-    let request=supabase.from(table).select('*').like(TABLE_ID,`/users/${LEGACY_FIREBASE_UID}/${table}/%`);
+    let request=supabase.from(table).select('*').like(TABLE_ID,`/${DATA_NAMESPACE}/${table}/%`);
     if(sortCol)request=request.order(sortCol,{ascending:!sortDesc,nullsFirst:false});
     const {data,error}=await request;if(error)throw dbError(error);
     return {docs:(data||[]).map(row=>({id:localId(table,row[TABLE_ID]),data:()=>{const copy={...row};delete copy[TABLE_ID];return copy;}}))};
   },doc(id){return docRef(table,id);},async add(value){const id=crypto.randomUUID();await docRef(table,id).set(value);return {id};}};
   return q;
 }
-function docRef(table,id){const path=String(id||'').startsWith('/users/')?String(id):legacyPath(table,id);return {
+function docRef(table,id){const path=String(id||'').startsWith('/users/')?String(id):recordPath(table,id);return {
  async set(value,options={}){const row={...value,[TABLE_ID]:path};const {error}=await supabase.from(table).upsert(row,{onConflict:TABLE_ID});if(error)throw dbError(error);},
  async update(value){const {error}=await supabase.from(table).update(value).eq(TABLE_ID,path);if(error)throw dbError(error);},
  async delete(){const {error}=await supabase.from(table).delete().eq(TABLE_ID,path);if(error)throw dbError(error);},
@@ -423,8 +423,8 @@ function openModal(title, body, onSave, opts={}){
       if(terminou) return;
       btn.disabled=false;
       btn.textContent=opts.saveLabel||'Salvar';
-      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Firebase.');
-      showNotice('O salvamento está demorando. Verifique a conexão com o Firebase.','error');
+      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Supabase.');
+      showNotice('O salvamento está demorando. Verifique a conexão com o Supabase.','error');
     },12000);
     try{
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
@@ -535,7 +535,7 @@ async function uploadFotoProduto(file,produtoId){
   if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
   if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
   const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg');
-  const path=`${LEGACY_FIREBASE_UID}/${produtoId}_${Date.now()}.${ext}`;
+  const path=`${USER.uid}/${produtoId}_${Date.now()}.${ext}`;
   const {error}=await supabase.storage.from('catalogo-produtos').upload(path,file,{contentType:file.type,upsert:true});
   if(error) throw error;
   const {data}=supabase.storage.from('catalogo-produtos').getPublicUrl(path);
@@ -545,7 +545,7 @@ function modalProduto(id){
   const p=byId('produtos',id)||{};
   window.__produtoFotoFile=null; window.__removerFoto=false;
   openModal(p.id?'Editar produto':'Novo produto',`
-    <div id="foto-preview" class="photo-preview">${p.foto?`<img src="${p.foto}"/>`:'📷 Sem imagem'}</div>
+    <div id="foto-preview" class="photo-preview">${(p.imagem_url||p.foto)?`<img src="${p.imagem_url||p.foto}"/>`:'📷 Sem imagem'}</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
       <label class="btn btn-outline btn-sm" style="cursor:pointer">📷 Escolher foto<input id="f-foto" type="file" accept="image/*" style="display:none" onchange="previewProdutoFoto(this)"/></label>
       <button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">🗑️ Retirar imagem</button>
@@ -559,20 +559,20 @@ function modalProduto(id){
     const nome=val('f-nome'), precoTexto=val('f-preco'), preco=Number(precoTexto);
     if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
-      let produtoId=p.id || col('produtos').doc().id;
-      // Primeiro salva os dados do produto no Firestore.
+      let produtoId=p.id || crypto.randomUUID();
+      // Primeiro salva os dados do produto no Supabase.
       // Assim, se houver algum problema no Storage, o produto não é perdido.
       let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
       const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,imagem_url:foto,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
-      if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Supabase não foi inicializado. Recarregue a página.'});
-      // O produto é salvo PRIMEIRO no Firestore. A foto nunca bloqueia o cadastro.
+      if(!db) throw Object.assign(new Error('A conexão com o Supabase não foi inicializada.'),{userMsg:'O Supabase não foi inicializado. Recarregue a página.'});
+      // O produto é salvo PRIMEIRO no Supabase. A foto nunca bloqueia o cadastro.
       const produtoRef=db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
       await Promise.race([
         produtoRef.set(payload,{merge:true}),
-        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Firestore não respondeu em 15 segundos.'),{userMsg:'O Firestore não respondeu em 15 segundos. Verifique a internet e as regras do Firestore.'})),15000))
+        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Supabase não respondeu em 15 segundos.'),{userMsg:'O Supabase não respondeu em 15 segundos. Verifique a conexão e as permissões das tabelas.'})),15000))
       ]);
 
       // Depois envia a nova foto, se houver.
@@ -582,7 +582,7 @@ function modalProduto(id){
           await produtoRef.set({foto:up.url,fotoPath:up.path,imagem_url:up.url,updatedAt:TS()},{merge:true});
         }catch(photoErr){
           console.error('Erro ao enviar foto:',photoErr);
-          toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
+          showNotice('Produto salvo, mas a foto não foi enviada: '+(photoErr?.message||'erro no Supabase Storage.'),'error');
         }
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
