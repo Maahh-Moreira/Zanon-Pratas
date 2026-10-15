@@ -7,8 +7,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-  onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2';"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f4f7fb;--surface:#fff;--surface-2:#f8fafc;--ink:#0f172a;--muted:#5b6b82;--border:#e2e8f0;--blue-deep:#0a1628;--blue-dark:#0f2744;--blue-mid:#163a5f;--blue-accent:#3b82f6;--blue-soft:#dbeafe;--blue-50:#eff6ff;--success:#059669;--danger:#dc2626;--shadow:0 1px 3px rgba(15,39,68,.06),0 8px 24px rgba(15,39,68,.04);--radius:12px;--sidebar:240px}
 html.dark{--bg:#0b1220;--surface:#111827;--surface-2:#0f172a;--ink:#e5eefb;--muted:#94a3b8;--border:#1e293b;--blue-deep:#060d18;--blue-dark:#0b1a2e;--blue-mid:#12263f;--blue-soft:#1e3a5f;--blue-50:#132337;--shadow:0 1px 3px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25)}
@@ -213,11 +214,11 @@ td{padding:.85rem 1rem}
           <button type="button" class="pass-toggle" data-target="login-pass" onclick="togglePass(this)">Mostrar</button></div></div>
         <button type="submit" class="btn-auth" id="btn-login">Entrar</button>
       </form>
-      <p class="auth-switch"><a href="#" role="button" onclick="event.preventDefault();resetPass()">Esqueci minha senha</a></p>
-      <p class="auth-switch">Não tem conta? <a href="#" role="button" onclick="event.preventDefault();showRegister()">Criar conta</a></p>
+      <p class="auth-switch"><a onclick="resetPass()">Esqueci minha senha</a></p>
+      <p class="auth-switch">Não tem conta? <a onclick="showRegister()">Criar conta</a></p>
     </div>
     <div class="auth-card hidden" id="register-card">
-      <div class="brand">ZM Pratas</div><h1>Criar conta</h1><p class="sub">Conta salva no Supabase</p>
+      <div class="brand">ZM Pratas</div><h1>Criar conta</h1><p class="sub">Conta salva no Firebase</p>
       <div class="auth-error" id="reg-error"></div>
       <form onsubmit="return doRegister(event)">
         <div class="field"><label>Nome completo</label><input id="reg-name" autocomplete="name" required/></div>
@@ -228,7 +229,7 @@ td{padding:.85rem 1rem}
           <button type="button" class="pass-toggle" data-target="reg-confirm" onclick="togglePass(this)">Mostrar</button></div></div>
         <button type="submit" class="btn-auth" id="btn-reg">Criar conta</button>
       </form>
-      <p class="auth-switch">Já tem conta? <a href="#" role="button" onclick="event.preventDefault();showLogin()">Entrar</a></p>
+      <p class="auth-switch">Já tem conta? <a onclick="showLogin()">Entrar</a></p>
     </div>
   </main>
 </div>
@@ -252,7 +253,7 @@ td{padding:.85rem 1rem}
     </nav>
     <div class="sidebar-footer">
       <div class="user-line" id="user-line">—</div>
-      <div class="sync-badge">Firebase Auth · Supabase dados</div>
+      <div class="sync-badge">Firebase · online</div>
       <button onclick="confirmLogout()">Sair</button>
     </div>
   </aside>
@@ -265,23 +266,6 @@ td{padding:.85rem 1rem}
 <div id="toast-root"></div>
 
 <script>
-if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-  window.addEventListener('DOMContentLoaded', () => {
-    const err = document.getElementById('login-error');
-    if (err) {
-      err.textContent = 'Não foi possível carregar a biblioteca de conexão. Verifique a internet ou tente abrir o site novamente.';
-      err.classList.add('show');
-    }
-    document.querySelectorAll('#auth button, #auth a').forEach(el => {
-      if (el.tagName === 'BUTTON' && el.type === 'submit') el.disabled = true;
-    });
-  });
-  throw new Error('Supabase JS não carregou: CDN indisponível.');
-}
-// CONFIGURAÇÃO SUPABASE — use a chave publishable (sb_publishable_...), nunca service_role.
-const SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
-window.__zmPratasSupabase = window.__zmPratasSupabase || window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const firebaseConfig = {
   apiKey: "AIzaSyBag8vuI8YIx2-REEWCV7d-94hhUokEopk",
   authDomain: "zm-pratas-2026.firebaseapp.com",
@@ -291,39 +275,17 @@ const firebaseConfig = {
   appId: "1:972536896905:web:2e7b476f24c21fefba9558",
   measurementId: "G-K6G1XGBCND"
 };
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const TS = () => new Date().toISOString();
-const LEGACY_DATA_UID = 'HNNimEpUXpZaJG7aRNYwE1JcL5p1';
-const TABLE_ID = 'Document ID';
-// Compatibilidade com os IDs legados já migrados para o Supabase.
-// As tabelas precisam ter uma coluna única chamada exatamente "Document ID".
-function legacyPath(table,id=''){return `/users/${LEGACY_DATA_UID}/${table}/${id}`;}
-function localId(table,path){const prefix=`/users/${LEGACY_DATA_UID}/${table}/`;return String(path||'').startsWith(prefix)?String(path).slice(prefix.length):String(path||'');}
-function dbError(error){if(!error)return error;return Object.assign(new Error(error.message||'Erro no Supabase'),{code:error.code==='42501'?'permission-denied':error.code||'unknown'});}
-function queryBuilder(table){
-  let sortCol=null,sortDesc=false;
-  const q={orderBy(col,dir='asc'){sortCol=col;sortDesc=dir==='desc';return q;},async get(){
-    let request=window.__zmPratasSupabase.from(table).select('*').like(TABLE_ID,`/users/${LEGACY_DATA_UID}/${table}/%`);
-    if(sortCol)request=request.order(sortCol,{ascending:!sortDesc,nullsFirst:false});
-    const {data,error}=await request;if(error)throw dbError(error);
-    return {docs:(data||[]).map(row=>({id:localId(table,row[TABLE_ID]),data:()=>{const copy={...row};delete copy[TABLE_ID];return copy;}}))};
-  },doc(id){return docRef(table,id);},async add(value){const id=crypto.randomUUID();await docRef(table,id).set(value);return {id};}};
-  return q;
-}
-function docRef(table,id){const path=String(id||'').startsWith('/users/')?String(id):legacyPath(table,id);return {
- async set(value,options={}){const row={...value,[TABLE_ID]:path};const {error}=await window.__zmPratasSupabase.from(table).upsert(row,{onConflict:TABLE_ID});if(error)throw dbError(error);},
- async update(value){const {error}=await window.__zmPratasSupabase.from(table).update(value).eq(TABLE_ID,path);if(error)throw dbError(error);},
- async delete(){const {error}=await window.__zmPratasSupabase.from(table).delete().eq(TABLE_ID,path);if(error)throw dbError(error);},
- get:async()=>{const {data,error}=await window.__zmPratasSupabase.from(table).select('*').eq(TABLE_ID,path).maybeSingle();if(error)throw dbError(error);return {exists:!!data,data:()=>{const copy={...(data||{})};delete copy[TABLE_ID];return copy;}}}
-};}
-const db={collection(name){return {doc(id){if(name==='users')return {collection(sub){return queryBuilder(sub);},async set(){}};return docRef(name,id);},...queryBuilder(name)};},async runTransaction(fn){
-  // O Supabase/PostgREST não oferece transações multi-operação no navegador.
-  // Executa operações sequenciais; para estoque/vendas com concorrência, use uma RPC SQL transacional.
-  const operations=[];const tx={async get(ref){return ref.get();},update(ref,data){operations.push(()=>ref.update(data));},set(ref,data){operations.push(()=>ref.set(data));},delete(ref){operations.push(()=>ref.delete());}};
-  await fn(tx);for(const op of operations)await op();
-}};
-const storage={from(bucket){return {async upload(path,file,opts){const {data,error}=await window.__zmPratasSupabase.storage.from(bucket).upload(path,file,{contentType:opts?.contentType,upsert:true});if(error)throw error;return {data};},getPublicUrl(path){return window.__zmPratasSupabase.storage.from(bucket).getPublicUrl(path);}}}};
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+// Supabase é usado SOMENTE para armazenar as fotos; dados e autenticação continuam no Firebase.
+const ZM_SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
+const ZM_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
+const zmSupabaseStorage = window.supabase.createClient(ZM_SUPABASE_URL, ZM_SUPABASE_PUBLISHABLE_KEY);
+
+const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
 let USER = null, PAGE = 'dashboard';
@@ -350,7 +312,7 @@ function mapErr(code){
     'auth/invalid-credential':'E-mail ou senha incorretos.',
     'auth/too-many-requests':'Muitas tentativas. Tente mais tarde.',
     'auth/network-request-failed':'Sem conexão. Verifique a internet.',
-    'permission-denied':'Permissão negada no Supabase. Confira as políticas RLS.'
+    'permission-denied':'Permissão negada no Firestore. Ajuste as regras de segurança.'
   })[code] || 'Não foi possível concluir. Tente novamente.';
 }
 
@@ -362,51 +324,24 @@ function toggleTheme(){ const d=document.documentElement.classList.toggle('dark'
 
 async function doRegister(e){
   e.preventDefault();
-  const err=document.getElementById('reg-error');
-  const btn=document.getElementById('btn-reg');
-  err.classList.remove('show','ok');
+  const err=document.getElementById('reg-error'); err.classList.remove('show');
   const name=val('reg-name'), email=val('reg-email').toLowerCase(), pass=val('reg-pass');
   if(pass!==val('reg-confirm')){ err.textContent='As senhas não coincidem.'; err.classList.add('show'); return false; }
-  btn.disabled=true;
-  const labelOriginal=btn.textContent;
-  btn.textContent='Criando conta...';
+  const btn=document.getElementById('btn-reg'); btn.disabled=true;
   try{
     const cred=await auth.createUserWithEmailAndPassword(email,pass);
     await cred.user.updateProfile({displayName:name});
-    // Os dados operacionais continuam no Supabase; a autenticação fica no Firebase.
-    err.textContent='Conta criada com sucesso! Entrando no sistema...';
-    err.classList.add('show','ok');
-  }catch(ex){
-    console.error('Erro ao criar conta no Firebase Authentication:',ex);
-    err.textContent=mapErr(ex.code);
-    err.classList.add('show');
-  }finally{
-    btn.disabled=false;
-    btn.textContent=labelOriginal || 'Criar conta';
-  }
-  return false;
+    await db.collection('users').doc(cred.user.uid).set({name,email,createdAt:TS()},{merge:true});
+  }catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
+  btn.disabled=false; return false;
 }
 async function doLogin(e){
   e.preventDefault();
-  const err=document.getElementById('login-error');
-  const btn=document.getElementById('btn-login');
-  err.classList.remove('show','ok');
-  btn.disabled=true;
-  const labelOriginal=btn.textContent;
-  btn.textContent='Entrando...';
-  try{
-    await auth.signInWithEmailAndPassword(val('login-email').toLowerCase(), val('login-pass'));
-    err.textContent='Login confirmado. Abrindo o sistema...';
-    err.classList.add('show','ok');
-  }catch(ex){
-    console.error('Erro ao entrar:',ex);
-    err.textContent=ex?.message || mapErr(ex?.code);
-    err.classList.add('show');
-  }finally{
-    btn.disabled=false;
-    btn.textContent=labelOriginal || 'Entrar';
-  }
-  return false;
+  const err=document.getElementById('login-error'); err.classList.remove('show','ok');
+  const btn=document.getElementById('btn-login'); btn.disabled=true;
+  try{ await auth.signInWithEmailAndPassword(val('login-email').toLowerCase(), val('login-pass')); }
+  catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
+  btn.disabled=false; return false;
 }
 async function resetPass(){
   const err=document.getElementById('login-error'); const email=val('login-email').toLowerCase();
@@ -422,7 +357,7 @@ async function loadAll(){
   const res=await Promise.all(NAMES.map(async n=>{
     let snap;
     try{ snap=await col(n).orderBy('createdAt','desc').get(); }
-    catch(ex){ if(ex.code==='permission-denied') throw new Error(`Tabela ${n}: ${ex.message||ex.code}`); snap=await col(n).get(); }
+    catch(ex){ if(ex.code==='permission-denied') throw ex; snap=await col(n).get(); }
     return [n, snap.docs.map(d=>({id:d.id,...d.data()}))];
   }));
   DATA=Object.fromEntries(res);
@@ -433,14 +368,9 @@ async function enterApp(){
   document.getElementById('user-line').textContent=USER.email||USER.displayName||'—';
   document.getElementById('content').innerHTML='<div class="empty">Sincronizando...</div>';
   try{ await loadAll(); go('dashboard'); }
-  catch(ex){
-    console.error('Falha ao carregar dados do Supabase:', ex);
-    const detail = ex?.message || ex?.details || ex?.hint || ex?.code || 'Erro desconhecido';
-    showNotice(`Falha ao carregar dados: ${detail}`,'error');
-    document.getElementById('content').innerHTML=`<div class="empty"><strong>Erro ao carregar dados</strong><p style="margin-top:12px;white-space:normal;overflow-wrap:anywhere">${esc(detail)}</p><p style="margin-top:8px">Abra o Console (F12) para ver os detalhes.</p></div>`;
-  }
+  catch(ex){ showNotice(mapErr(ex.code||''),'error'); document.getElementById('content').innerHTML='<div class="empty">Erro ao carregar dados</div>'; }
 }
-auth.onAuthStateChanged(u=>{ if(u){ USER=u; enterApp().catch(ex=>{ console.error('Erro ao abrir o sistema:',ex); showNotice(ex?.message || 'Não foi possível carregar os dados.','error'); }); } else logoutUI(); });
+auth.onAuthStateChanged(async u=>{ if(u){ USER=u; await enterApp(); } else logoutUI(); });
 
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 function modalError(msg){ const el=document.getElementById('modal-error'); if(!el)return; el.textContent=msg; el.classList.add('show'); }
@@ -458,9 +388,9 @@ function openModal(title, body, onSave, opts={}){
       if(terminou) return;
       btn.disabled=false;
       btn.textContent=opts.saveLabel||'Salvar';
-      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Supabase.');
-      showNotice('O salvamento está demorando. Verifique a conexão com o Supabase.','error');
-    },45000);
+      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Firebase.');
+      showNotice('O salvamento está demorando. Verifique a conexão com o Firebase.','error');
+    },12000);
     try{
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
       const ok=await onSave();
@@ -561,80 +491,32 @@ function importarBackup(){ const input=document.createElement('input'); input.ty
 function renderProdutos(){
   return `<div class="toolbar"><div><div style="font-size:.75rem;color:var(--muted);margin-bottom:.25rem">Catálogo</div><strong style="font-size:1.05rem">${DATA.produtos.length} produto(s)</strong></div><div style="display:flex;gap:.55rem;flex-wrap:wrap;align-items:center"><input class="search" placeholder="🔎 Buscar nome, SKU ou categoria..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div></div>
   <div class="product-grid" id="prod-grid">${DATA.produtos.map(p=>`<div class="product-card" data-q="${esc((p.nome+' '+(p.sku||'')+' '+(p.cat||'')).toLowerCase())}">
-    <div class="product-body"><div class="product-img ${(p.imagem_url||p.foto)?'has-photo':''}">${(p.imagem_url||p.foto)?`<img src="${p.imagem_url||p.foto}" alt="${esc(p.nome)}"/>`:'💎'}</div><div class="product-info"><div class="meta" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${esc(p.cat||'Geral')}</div><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
+    <div class="product-body"><div class="product-img ${p.foto?'has-photo':''}">${p.foto?`<img src="${p.foto}" alt="${esc(p.nome)}"/>`:'💎'}</div><div class="product-info"><div class="meta" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${esc(p.cat||'Geral')}</div><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
     <div class="meta">${p.sku?`SKU ${esc(p.sku)} · `:''}<strong>${p.estoque}</strong> em estoque</div></div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">✏️ Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto cadastrado. Clique em “+ Novo produto” para começar.</div>'}</div>`;
 }
-async function prepararFotoProduto(file){
-  if(!file || !file.type || !file.type.startsWith('image/')) throw new Error('Selecione um arquivo de imagem válido.');
-  if(file.size > 5 * 1024 * 1024) throw new Error('A foto deve ter no máximo 5 MB.');
-
-  // Tenta reduzir a imagem para WebP. Se o navegador não suportar a conversão,
-  // mantém o arquivo original e preserva sua extensão/MIME type.
-  try {
-    if(typeof createImageBitmap !== 'function') return file;
-    const img = await createImageBitmap(file);
-    try {
-      const max = 1200;
-      const scale = Math.min(1, max / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(img.width * scale));
-      canvas.height = Math.max(1, Math.round(img.height * scale));
-      const ctx = canvas.getContext('2d');
-      if(!ctx) return file;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
-      if(!blob || blob.type !== 'image/webp') return file;
-      return new File([blob], `produto-${Date.now()}.webp`, {type:'image/webp'});
-    } finally {
-      img.close?.();
-    }
-  } catch (err) {
-    console.warn('Não foi possível otimizar a foto; será enviado o arquivo original.', err);
-    return file;
-  }
-}
-async function uploadFotoProduto(file, produtoId){
+async function uploadFotoProduto(file,produtoId){
   if(!file) return null;
-  if(!USER || !USER.uid) throw new Error('Sua sessão expirou. Entre novamente e tente enviar a foto.');
-
-  const {data:sessionData, error:sessionError} = await window.__zmPratasSupabase.auth.getSession();
-  if(sessionError) throw new Error(`Não foi possível validar sua sessão: ${sessionError.message}`);
-  if(!sessionData?.session?.user) throw new Error('Você não está autenticada no Supabase. Saia da conta e entre novamente antes de enviar a foto.');
-
-  const imagem = await prepararFotoProduto(file);
-  const mime = imagem.type || file.type || 'application/octet-stream';
-  const extensao = mime === 'image/webp' ? 'webp' :
-    mime === 'image/png' ? 'png' :
-    mime === 'image/gif' ? 'gif' :
-    mime === 'image/jpeg' ? 'jpg' :
-    mime === 'image/svg+xml' ? 'svg' : 'img';
-  const path = `${USER.uid}/${produtoId}_${Date.now()}.${extensao}`;
-
-  const {error} = await window.__zmPratasSupabase.storage.from('catalogo-produtos').upload(path, imagem, {
-    contentType: mime,
-    upsert: true,
-    cacheControl: '31536000'
+  if(!file.type || !file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
+  if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
+  if(!window.supabase || !zmSupabaseStorage) throw new Error('A conexão do armazenamento de fotos não carregou.');
+  const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg').replace('svg+xml','svg');
+  const path=`${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
+  const {error}=await zmSupabaseStorage.storage.from('catalogo-produtos').upload(path,file,{
+    contentType:file.type,
+    upsert:true,
+    cacheControl:'3600'
   });
-  if(error){
-    console.error('Supabase Storage upload error:', error);
-    if(error.message?.toLowerCase().includes('row-level security') || error.statusCode === '403'){
-      throw new Error('O Supabase bloqueou o envio por uma regra de segurança (RLS). Confira se a política INSERT do bucket catalogo-produtos permite usuários autenticados e se a pasta inicial do caminho corresponde ao ID do usuário logado.');
-    }
-    if(error.message?.toLowerCase().includes('bucket')){
-      throw new Error('O bucket catalogo-produtos não foi encontrado ou não está acessível. Confira o nome do bucket no Supabase.');
-    }
-    throw new Error(`Falha no Supabase Storage: ${error.message || 'erro sem descrição'}${error.statusCode ? ` (HTTP ${error.statusCode})` : ''}`);
-  }
-  const {data:publicData} = window.__zmPratasSupabase.storage.from('catalogo-produtos').getPublicUrl(path);
-  if(!publicData?.publicUrl) throw new Error('A foto foi enviada, mas o Supabase não retornou uma URL pública. Confira se o bucket catalogo-produtos está marcado como público.');
-  return {url:publicData.publicUrl, path};
+  if(error) throw error;
+  const {data}=zmSupabaseStorage.storage.from('catalogo-produtos').getPublicUrl(path);
+  if(!data?.publicUrl) throw new Error('Não foi possível obter o endereço público da foto.');
+  return {url:data.publicUrl,path};
 }
 function modalProduto(id){
   const p=byId('produtos',id)||{};
   window.__produtoFotoFile=null; window.__removerFoto=false;
   openModal(p.id?'Editar produto':'Novo produto',`
-    <div id="foto-preview" class="photo-preview">${(p.imagem_url||p.foto)?`<img src="${p.imagem_url||p.foto}"/>`:'📷 Sem imagem'}</div>
+    <div id="foto-preview" class="photo-preview">${p.foto?`<img src="${p.foto}"/>`:'📷 Sem imagem'}</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
       <label class="btn btn-outline btn-sm" style="cursor:pointer">📷 Escolher foto<input id="f-foto" type="file" accept="image/*" style="display:none" onchange="previewProdutoFoto(this)"/></label>
       <button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">🗑️ Retirar imagem</button>
@@ -648,31 +530,37 @@ function modalProduto(id){
     const nome=val('f-nome'), precoTexto=val('f-preco'), preco=Number(precoTexto);
     if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
-      let produtoId=p.id || crypto.randomUUID();
-      // Salva os dados diretamente no Supabase.
-      let foto=p.imagem_url||p.foto||'', fotoPath=p.fotoPath||'';
+      let produtoId=p.id || col('produtos').doc().id;
+      // Primeiro salva os dados do produto no Firestore.
+      // Assim, se houver algum problema no Storage, o produto não é perdido.
+      let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
-      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,imagem_url:foto,updatedAt:TS()};
+      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
+      if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Firebase Firestore não foi inicializado. Recarregue a página.'});
+      // O produto é salvo PRIMEIRO no Firestore. A foto nunca bloqueia o cadastro.
       const produtoRef=db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
-      await produtoRef.set(payload,{merge:true});
+      await Promise.race([
+        produtoRef.set(payload,{merge:true}),
+        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Firestore não respondeu em 15 segundos.'),{userMsg:'O Firestore não respondeu em 15 segundos. Verifique a internet e as regras do Firestore.'})),15000))
+      ]);
 
-      // Envia a foto otimizada e grava sua URL no mesmo registro.
+      // Depois envia a nova foto, se houver.
       if(window.__produtoFotoFile){
         try{
           const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
-          await produtoRef.set({foto:up.url,fotoPath:up.path,imagem_url:up.url,updatedAt:TS()},{merge:true});
+          await produtoRef.set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
         }catch(photoErr){
-          console.error('Erro no upload da foto para o Supabase Storage:',photoErr);
-          throw Object.assign(new Error(`O produto foi salvo, mas a foto falhou no Supabase: ${photoErr.message||'erro desconhecido'}`),{cause:photoErr});
+          console.error('Erro ao enviar foto:',photoErr);
+          toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
         }
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
       return true;
     }catch(ex){
       console.error('Erro ao salvar produto:',ex);
-      modalError(ex?.userMsg || ex?.message || mapErr(ex?.code) || 'Não foi possível salvar o produto.');
+      modalError(ex?.message || ex?.userMsg || mapErr(ex?.code) || 'Não foi possível salvar o produto.');
       return false;
     }
   });
