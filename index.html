@@ -291,24 +291,24 @@ const auth = {
 function adaptUser(u){return {...u,uid:u.id,displayName:u.user_metadata?.display_name||u.user_metadata?.name||'',email:u.email};}
 function mapSupabaseError(e){const map={'User already registered':'auth/email-already-in-use','Invalid login credentials':'auth/invalid-credential','Password should be at least 6 characters':'auth/weak-password'};return Object.assign(new Error(e.message),{code:map[e.message]||e.code||'unknown'});}
 const TS = () => new Date().toISOString();
-const DATA_NAMESPACE = 'users/HNNimEpUXpZaJG7aRNYwE1JcL5p1';
+const LEGACY_DATA_UID = 'HNNimEpUXpZaJG7aRNYwE1JcL5p1';
 const TABLE_ID = 'Document ID';
-// Os registros são armazenados no Supabase usando a coluna única "Document ID".
-// Mantém o namespace dos registros já existentes no Supabase durante a migração; não conecta ao Firebase.
-function recordPath(table,id=''){return `/${DATA_NAMESPACE}/${table}/${id}`;}
-function localId(table,path){const prefix=`/${DATA_NAMESPACE}/${table}/`;return String(path||'').startsWith(prefix)?String(path).slice(prefix.length):String(path||'');}
+// Compatibilidade com os IDs legados já migrados para o Supabase.
+// As tabelas precisam ter uma coluna única chamada exatamente "Document ID".
+function legacyPath(table,id=''){return `/users/${LEGACY_DATA_UID}/${table}/${id}`;}
+function localId(table,path){const prefix=`/users/${LEGACY_DATA_UID}/${table}/`;return String(path||'').startsWith(prefix)?String(path).slice(prefix.length):String(path||'');}
 function dbError(error){if(!error)return error;return Object.assign(new Error(error.message||'Erro no Supabase'),{code:error.code==='42501'?'permission-denied':error.code||'unknown'});}
 function queryBuilder(table){
   let sortCol=null,sortDesc=false;
   const q={orderBy(col,dir='asc'){sortCol=col;sortDesc=dir==='desc';return q;},async get(){
-    let request=supabase.from(table).select('*').like(TABLE_ID,`/${DATA_NAMESPACE}/${table}/%`);
+    let request=supabase.from(table).select('*').like(TABLE_ID,`/users/${LEGACY_DATA_UID}/${table}/%`);
     if(sortCol)request=request.order(sortCol,{ascending:!sortDesc,nullsFirst:false});
     const {data,error}=await request;if(error)throw dbError(error);
     return {docs:(data||[]).map(row=>({id:localId(table,row[TABLE_ID]),data:()=>{const copy={...row};delete copy[TABLE_ID];return copy;}}))};
   },doc(id){return docRef(table,id);},async add(value){const id=crypto.randomUUID();await docRef(table,id).set(value);return {id};}};
   return q;
 }
-function docRef(table,id){const path=String(id||'').startsWith('/users/')?String(id):recordPath(table,id);return {
+function docRef(table,id){const path=String(id||'').startsWith('/users/')?String(id):legacyPath(table,id);return {
  async set(value,options={}){const row={...value,[TABLE_ID]:path};const {error}=await supabase.from(table).upsert(row,{onConflict:TABLE_ID});if(error)throw dbError(error);},
  async update(value){const {error}=await supabase.from(table).update(value).eq(TABLE_ID,path);if(error)throw dbError(error);},
  async delete(){const {error}=await supabase.from(table).delete().eq(TABLE_ID,path);if(error)throw dbError(error);},
@@ -425,7 +425,7 @@ function openModal(title, body, onSave, opts={}){
       btn.textContent=opts.saveLabel||'Salvar';
       modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Supabase.');
       showNotice('O salvamento está demorando. Verifique a conexão com o Supabase.','error');
-    },12000);
+    },45000);
     try{
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
       const ok=await onSave();
@@ -530,13 +530,31 @@ function renderProdutos(){
     <div class="meta">${p.sku?`SKU ${esc(p.sku)} · `:''}<strong>${p.estoque}</strong> em estoque</div></div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">✏️ Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto cadastrado. Clique em “+ Novo produto” para começar.</div>'}</div>`;
 }
+async function prepararFotoProduto(file){
+  // Reduz imagens grandes antes do upload para acelerar a gravação no Storage.
+  if(!file || !file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
+  if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
+  try{
+    const img=await createImageBitmap(file);
+    const max=1200, scale=Math.min(1,max/Math.max(img.width,img.height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.width*scale));
+    canvas.height=Math.max(1,Math.round(img.height*scale));
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,canvas.width,canvas.height); img.close?.();
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível preparar a imagem.')),'image/webp',0.82));
+    return new File([blob],`produto-${Date.now()}.webp`,{type:'image/webp'});
+  }catch(err){
+    if(err instanceof Error && err.message==='Não foi possível preparar a imagem.') throw err;
+    // Navegadores sem suporte a createImageBitmap continuam usando o arquivo original.
+    return file;
+  }
+}
 async function uploadFotoProduto(file,produtoId){
   if(!file) return null;
-  if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
-  if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
-  const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg');
-  const path=`${USER.uid}/${produtoId}_${Date.now()}.${ext}`;
-  const {error}=await supabase.storage.from('catalogo-produtos').upload(path,file,{contentType:file.type,upsert:true});
+  const otimizada=await prepararFotoProduto(file);
+  const path=`${USER.uid}/${produtoId}_${Date.now()}.webp`;
+  const {error}=await supabase.storage.from('catalogo-produtos').upload(path,otimizada,{contentType:otimizada.type,upsert:true,cacheControl:'31536000'});
   if(error) throw error;
   const {data}=supabase.storage.from('catalogo-produtos').getPublicUrl(path);
   return {url:data.publicUrl,path};
@@ -560,29 +578,23 @@ function modalProduto(id){
     if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
       let produtoId=p.id || crypto.randomUUID();
-      // Primeiro salva os dados do produto no Supabase.
-      // Assim, se houver algum problema no Storage, o produto não é perdido.
-      let foto=p.foto||'', fotoPath=p.fotoPath||'';
+      // Salva os dados diretamente no Supabase.
+      let foto=p.imagem_url||p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
       const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,imagem_url:foto,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
-      if(!db) throw Object.assign(new Error('A conexão com o Supabase não foi inicializada.'),{userMsg:'O Supabase não foi inicializado. Recarregue a página.'});
-      // O produto é salvo PRIMEIRO no Supabase. A foto nunca bloqueia o cadastro.
       const produtoRef=db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
-      await Promise.race([
-        produtoRef.set(payload,{merge:true}),
-        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Supabase não respondeu em 15 segundos.'),{userMsg:'O Supabase não respondeu em 15 segundos. Verifique a conexão e as permissões das tabelas.'})),15000))
-      ]);
+      await produtoRef.set(payload,{merge:true});
 
-      // Depois envia a nova foto, se houver.
+      // Envia a foto otimizada e grava sua URL no mesmo registro.
       if(window.__produtoFotoFile){
         try{
           const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
           await produtoRef.set({foto:up.url,fotoPath:up.path,imagem_url:up.url,updatedAt:TS()},{merge:true});
         }catch(photoErr){
-          console.error('Erro ao enviar foto:',photoErr);
-          showNotice('Produto salvo, mas a foto não foi enviada: '+(photoErr?.message||'erro no Supabase Storage.'),'error');
+          console.error('Erro no upload da foto para o Supabase Storage:',photoErr);
+          throw Object.assign(new Error(`O produto foi salvo, mas a foto falhou no Supabase: ${photoErr.message||'erro desconhecido'}`),{cause:photoErr});
         }
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
