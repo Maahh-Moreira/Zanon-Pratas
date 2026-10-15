@@ -5,10 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>ZM Pratas</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f4f7fb;--surface:#fff;--surface-2:#f8fafc;--ink:#0f172a;--muted:#5b6b82;--border:#e2e8f0;--blue-deep:#0a1628;--blue-dark:#0f2744;--blue-mid:#163a5f;--blue-accent:#3b82f6;--blue-soft:#dbeafe;--blue-50:#eff6ff;--success:#059669;--danger:#dc2626;--shadow:0 1px 3px rgba(15,39,68,.06),0 8px 24px rgba(15,39,68,.04);--radius:12px;--sidebar:240px}
 html.dark{--bg:#0b1220;--surface:#111827;--surface-2:#0f172a;--ink:#e5eefb;--muted:#94a3b8;--border:#1e293b;--blue-deep:#060d18;--blue-dark:#0b1a2e;--blue-mid:#12263f;--blue-soft:#1e3a5f;--blue-50:#132337;--shadow:0 1px 3px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25)}
@@ -217,7 +214,7 @@ td{padding:.85rem 1rem}
       <p class="auth-switch">Não tem conta? <a onclick="showRegister()">Criar conta</a></p>
     </div>
     <div class="auth-card hidden" id="register-card">
-      <div class="brand">ZM Pratas</div><h1>Criar conta</h1><p class="sub">Conta salva no Firebase</p>
+      <div class="brand">ZM Pratas</div><h1>Criar conta</h1><p class="sub">Conta salva no Supabase</p>
       <div class="auth-error" id="reg-error"></div>
       <form onsubmit="return doRegister(event)">
         <div class="field"><label>Nome completo</label><input id="reg-name" autocomplete="name" required/></div>
@@ -252,7 +249,7 @@ td{padding:.85rem 1rem}
     </nav>
     <div class="sidebar-footer">
       <div class="user-line" id="user-line">—</div>
-      <div class="sync-badge">Firebase · online</div>
+      <div class="sync-badge">Supabase · online</div>
       <button onclick="confirmLogout()">Sair</button>
     </div>
   </aside>
@@ -265,20 +262,65 @@ td{padding:.85rem 1rem}
 <div id="toast-root"></div>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBag8vuI8YIx2-REEWCV7d-94hhUokEopk",
-  authDomain: "zm-pratas-2026.firebaseapp.com",
-  projectId: "zm-pratas-2026",
-  storageBucket: "zm-pratas-2026.firebasestorage.app",
-  messagingSenderId: "972536896905",
-  appId: "1:972536896905:web:2e7b476f24c21fefba9558",
-  measurementId: "G-K6G1XGBCND"
+// CONFIGURAÇÃO SUPABASE — use a chave publishable (sb_publishable_...), nunca service_role.
+const SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const auth = {
+  async createUserWithEmailAndPassword(email,password){
+    const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name:''}}});
+    if(error) throw mapSupabaseError(error);
+    return {user:data.user};
+  },
+  async signInWithEmailAndPassword(email,password){
+    const {data,error}=await supabase.auth.signInWithPassword({email,password});
+    if(error) throw mapSupabaseError(error);
+    return data;
+  },
+  async sendPasswordResetEmail(email){
+    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:location.href});
+    if(error) throw mapSupabaseError(error);
+  },
+  async signOut(){const {error}=await supabase.auth.signOut();if(error)throw mapSupabaseError(error)},
+  onAuthStateChanged(callback){
+    supabase.auth.getSession().then(({data})=>callback(data.session?.user?adaptUser(data.session.user):null));
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>callback(session?.user?adaptUser(session.user):null));
+    return ()=>subscription.unsubscribe();
+  }
 };
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-const TS = () => firebase.firestore.FieldValue.serverTimestamp();
+function adaptUser(u){return {...u,uid:u.id,displayName:u.user_metadata?.display_name||u.user_metadata?.name||'',email:u.email};}
+function mapSupabaseError(e){const map={'User already registered':'auth/email-already-in-use','Invalid login credentials':'auth/invalid-credential','Password should be at least 6 characters':'auth/weak-password'};return Object.assign(new Error(e.message),{code:map[e.message]||e.code||'unknown'});}
+const TS = () => new Date().toISOString();
+const LEGACY_FIREBASE_UID = 'HNNimEpUXpZaJG7aRNYwE1JcL5p1';
+const TABLE_ID = 'Document ID';
+// Compatibilidade com a estrutura antiga: IDs locais são convertidos para o caminho Firebase completo.
+// As tabelas precisam ter uma coluna única chamada exatamente "Document ID".
+function legacyPath(table,id=''){return `/users/${LEGACY_FIREBASE_UID}/${table}/${id}`;}
+function localId(table,path){const prefix=`/users/${LEGACY_FIREBASE_UID}/${table}/`;return String(path||'').startsWith(prefix)?String(path).slice(prefix.length):String(path||'');}
+function dbError(error){if(!error)return error;return Object.assign(new Error(error.message||'Erro no Supabase'),{code:error.code==='42501'?'permission-denied':error.code||'unknown'});}
+function queryBuilder(table){
+  let sortCol=null,sortDesc=false;
+  const q={orderBy(col,dir='asc'){sortCol=col;sortDesc=dir==='desc';return q;},async get(){
+    let request=supabase.from(table).select('*').like(TABLE_ID,`/users/${LEGACY_FIREBASE_UID}/${table}/%`);
+    if(sortCol)request=request.order(sortCol,{ascending:!sortDesc,nullsFirst:false});
+    const {data,error}=await request;if(error)throw dbError(error);
+    return {docs:(data||[]).map(row=>({id:localId(table,row[TABLE_ID]),data:()=>{const copy={...row};delete copy[TABLE_ID];return copy;}}))};
+  },doc(id){return docRef(table,id);},async add(value){const id=crypto.randomUUID();await docRef(table,id).set(value);return {id};}};
+  return q;
+}
+function docRef(table,id){const path=String(id||'').startsWith('/users/')?String(id):legacyPath(table,id);return {
+ async set(value,options={}){const row={...value,[TABLE_ID]:path};const {error}=await supabase.from(table).upsert(row,{onConflict:TABLE_ID});if(error)throw dbError(error);},
+ async update(value){const {error}=await supabase.from(table).update(value).eq(TABLE_ID,path);if(error)throw dbError(error);},
+ async delete(){const {error}=await supabase.from(table).delete().eq(TABLE_ID,path);if(error)throw dbError(error);},
+ get:async()=>{const {data,error}=await supabase.from(table).select('*').eq(TABLE_ID,path).maybeSingle();if(error)throw dbError(error);return {exists:!!data,data:()=>{const copy={...(data||{})};delete copy[TABLE_ID];return copy;}}}
+};}
+const db={collection(name){return {doc(id){if(name==='users')return {collection(sub){return queryBuilder(sub);},async set(){}};return docRef(name,id);},...queryBuilder(name)};},async runTransaction(fn){
+  // O Supabase/PostgREST não oferece transações multi-operação no navegador.
+  // Executa operações sequenciais; para estoque/vendas com concorrência, use uma RPC SQL transacional.
+  const operations=[];const tx={async get(ref){return ref.get();},update(ref,data){operations.push(()=>ref.update(data));},set(ref,data){operations.push(()=>ref.set(data));},delete(ref){operations.push(()=>ref.delete());}};
+  await fn(tx);for(const op of operations)await op();
+}};
+const storage={from(bucket){return {async upload(path,file,opts){const {data,error}=await supabase.storage.from(bucket).upload(path,file,{contentType:opts?.contentType,upsert:true});if(error)throw error;return {data};},getPublicUrl(path){return supabase.storage.from(bucket).getPublicUrl(path);}}}};
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
 let USER = null, PAGE = 'dashboard';
@@ -305,7 +347,7 @@ function mapErr(code){
     'auth/invalid-credential':'E-mail ou senha incorretos.',
     'auth/too-many-requests':'Muitas tentativas. Tente mais tarde.',
     'auth/network-request-failed':'Sem conexão. Verifique a internet.',
-    'permission-denied':'Permissão negada no Firestore. Ajuste as regras de segurança.'
+    'permission-denied':'Permissão negada no Supabase. Confira as políticas RLS.'
   })[code] || 'Não foi possível concluir. Tente novamente.';
 }
 
@@ -322,9 +364,9 @@ async function doRegister(e){
   if(pass!==val('reg-confirm')){ err.textContent='As senhas não coincidem.'; err.classList.add('show'); return false; }
   const btn=document.getElementById('btn-reg'); btn.disabled=true;
   try{
-    const cred=await auth.createUserWithEmailAndPassword(email,pass);
-    await cred.user.updateProfile({displayName:name});
-    await db.collection('users').doc(cred.user.uid).set({name,email,createdAt:TS()},{merge:true});
+    const {data,error}=await supabase.auth.signUp({email,password:pass,options:{data:{display_name:name}}});
+    if(error) throw mapSupabaseError(error);
+    if(!data.session){err.textContent='Conta criada. Confirme seu e-mail para entrar.';err.classList.add('show','ok');return false;}
   }catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
   btn.disabled=false; return false;
 }
@@ -484,7 +526,7 @@ function importarBackup(){ const input=document.createElement('input'); input.ty
 function renderProdutos(){
   return `<div class="toolbar"><div><div style="font-size:.75rem;color:var(--muted);margin-bottom:.25rem">Catálogo</div><strong style="font-size:1.05rem">${DATA.produtos.length} produto(s)</strong></div><div style="display:flex;gap:.55rem;flex-wrap:wrap;align-items:center"><input class="search" placeholder="🔎 Buscar nome, SKU ou categoria..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div></div>
   <div class="product-grid" id="prod-grid">${DATA.produtos.map(p=>`<div class="product-card" data-q="${esc((p.nome+' '+(p.sku||'')+' '+(p.cat||'')).toLowerCase())}">
-    <div class="product-body"><div class="product-img ${p.foto?'has-photo':''}">${p.foto?`<img src="${p.foto}" alt="${esc(p.nome)}"/>`:'💎'}</div><div class="product-info"><div class="meta" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${esc(p.cat||'Geral')}</div><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
+    <div class="product-body"><div class="product-img ${(p.imagem_url||p.foto)?'has-photo':''}">${(p.imagem_url||p.foto)?`<img src="${p.imagem_url||p.foto}" alt="${esc(p.nome)}"/>`:'💎'}</div><div class="product-info"><div class="meta" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${esc(p.cat||'Geral')}</div><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
     <div class="meta">${p.sku?`SKU ${esc(p.sku)} · `:''}<strong>${p.estoque}</strong> em estoque</div></div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">✏️ Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto cadastrado. Clique em “+ Novo produto” para começar.</div>'}</div>`;
 }
@@ -493,10 +535,11 @@ async function uploadFotoProduto(file,produtoId){
   if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
   if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
   const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg');
-  const path=`users/${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
-  const ref=storage.ref(path);
-  await ref.put(file,{contentType:file.type});
-  return {url:await ref.getDownloadURL(),path};
+  const path=`${LEGACY_FIREBASE_UID}/${produtoId}_${Date.now()}.${ext}`;
+  const {error}=await supabase.storage.from('catalogo-produtos').upload(path,file,{contentType:file.type,upsert:true});
+  if(error) throw error;
+  const {data}=supabase.storage.from('catalogo-produtos').getPublicUrl(path);
+  return {url:data.publicUrl,path};
 }
 function modalProduto(id){
   const p=byId('produtos',id)||{};
@@ -521,10 +564,10 @@ function modalProduto(id){
       // Assim, se houver algum problema no Storage, o produto não é perdido.
       let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
-      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
+      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,imagem_url:foto,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
-      if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Firebase Firestore não foi inicializado. Recarregue a página.'});
+      if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Supabase não foi inicializado. Recarregue a página.'});
       // O produto é salvo PRIMEIRO no Firestore. A foto nunca bloqueia o cadastro.
       const produtoRef=db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
       await Promise.race([
@@ -536,7 +579,7 @@ function modalProduto(id){
       if(window.__produtoFotoFile){
         try{
           const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
-          await produtoRef.set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
+          await produtoRef.set({foto:up.url,fotoPath:up.path,imagem_url:up.url,updatedAt:TS()},{merge:true});
         }catch(photoErr){
           console.error('Erro ao enviar foto:',photoErr);
           toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
