@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -6,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>ZM Pratas</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2';"></script>
 <style>
 :root{--bg:#f4f7fb;--surface:#fff;--surface-2:#f8fafc;--ink:#0f172a;--muted:#5b6b82;--border:#e2e8f0;--blue-deep:#0a1628;--blue-dark:#0f2744;--blue-mid:#163a5f;--blue-accent:#3b82f6;--blue-soft:#dbeafe;--blue-50:#eff6ff;--success:#059669;--danger:#dc2626;--shadow:0 1px 3px rgba(15,39,68,.06),0 8px 24px rgba(15,39,68,.04);--radius:12px;--sidebar:240px}
 html.dark{--bg:#0b1220;--surface:#111827;--surface-2:#0f172a;--ink:#e5eefb;--muted:#94a3b8;--border:#1e293b;--blue-deep:#060d18;--blue-dark:#0b1a2e;--blue-mid:#12263f;--blue-soft:#1e3a5f;--blue-50:#132337;--shadow:0 1px 3px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25)}
@@ -211,8 +211,8 @@ td{padding:.85rem 1rem}
           <button type="button" class="pass-toggle" data-target="login-pass" onclick="togglePass(this)">Mostrar</button></div></div>
         <button type="submit" class="btn-auth" id="btn-login">Entrar</button>
       </form>
-      <p class="auth-switch"><a onclick="resetPass()">Esqueci minha senha</a></p>
-      <p class="auth-switch">Não tem conta? <a onclick="showRegister()">Criar conta</a></p>
+      <p class="auth-switch"><a href="#" role="button" onclick="event.preventDefault();resetPass()">Esqueci minha senha</a></p>
+      <p class="auth-switch">Não tem conta? <a href="#" role="button" onclick="event.preventDefault();showRegister()">Criar conta</a></p>
     </div>
     <div class="auth-card hidden" id="register-card">
       <div class="brand">ZM Pratas</div><h1>Criar conta</h1><p class="sub">Conta salva no Supabase</p>
@@ -226,7 +226,7 @@ td{padding:.85rem 1rem}
           <button type="button" class="pass-toggle" data-target="reg-confirm" onclick="togglePass(this)">Mostrar</button></div></div>
         <button type="submit" class="btn-auth" id="btn-reg">Criar conta</button>
       </form>
-      <p class="auth-switch">Já tem conta? <a onclick="showLogin()">Entrar</a></p>
+      <p class="auth-switch">Já tem conta? <a href="#" role="button" onclick="event.preventDefault();showLogin()">Entrar</a></p>
     </div>
   </main>
 </div>
@@ -263,33 +263,46 @@ td{padding:.85rem 1rem}
 <div id="toast-root"></div>
 
 <script>
+if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+  window.addEventListener('DOMContentLoaded', () => {
+    const err = document.getElementById('login-error');
+    if (err) {
+      err.textContent = 'Não foi possível carregar a biblioteca de conexão. Verifique a internet ou tente abrir o site novamente.';
+      err.classList.add('show');
+    }
+    document.querySelectorAll('#auth button, #auth a').forEach(el => {
+      if (el.tagName === 'BUTTON' && el.type === 'submit') el.disabled = true;
+    });
+  });
+  throw new Error('Supabase JS não carregou: CDN indisponível.');
+}
 // CONFIGURAÇÃO SUPABASE — use a chave publishable (sb_publishable_...), nunca service_role.
 const SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+window.__zmPratasSupabase = window.__zmPratasSupabase || window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const auth = {
   async createUserWithEmailAndPassword(email,password){
-    const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name:''}}});
+    const {data,error}=await window.__zmPratasSupabase.auth.signUp({email,password,options:{data:{display_name:''}}});
     if(error) throw mapSupabaseError(error);
     return {user:data.user};
   },
   async signInWithEmailAndPassword(email,password){
-    const {data,error}=await supabase.auth.signInWithPassword({email,password});
+    const {data,error}=await window.__zmPratasSupabase.auth.signInWithPassword({email,password});
     if(error) throw mapSupabaseError(error);
     return data;
   },
   async sendPasswordResetEmail(email){
-    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:location.href});
+    const {error}=await window.__zmPratasSupabase.auth.resetPasswordForEmail(email,{redirectTo:location.href});
     if(error) throw mapSupabaseError(error);
   },
-  async signOut(){const {error}=await supabase.auth.signOut();if(error)throw mapSupabaseError(error)},
+  async signOut(){const {error}=await window.__zmPratasSupabase.auth.signOut();if(error)throw mapSupabaseError(error)},
   onAuthStateChanged(callback){
     // O Supabase emite INITIAL_SESSION ao registrar o listener.
     // Não chamar getSession() em paralelo: uma resposta atrasada com sessão nula
     // pode sobrescrever o evento de login e devolver o usuário para a tela de entrada.
     let active = true;
     let lastUserId;
-    const {data:{subscription}} = supabase.auth.onAuthStateChange((event, session) => {
+    const {data:{subscription}} = window.__zmPratasSupabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user || null;
       const nextId = user?.id || null;
       if (event !== 'INITIAL_SESSION' && nextId === lastUserId) return;
@@ -317,7 +330,7 @@ function dbError(error){if(!error)return error;return Object.assign(new Error(er
 function queryBuilder(table){
   let sortCol=null,sortDesc=false;
   const q={orderBy(col,dir='asc'){sortCol=col;sortDesc=dir==='desc';return q;},async get(){
-    let request=supabase.from(table).select('*').like(TABLE_ID,`/users/${LEGACY_DATA_UID}/${table}/%`);
+    let request=window.__zmPratasSupabase.from(table).select('*').like(TABLE_ID,`/users/${LEGACY_DATA_UID}/${table}/%`);
     if(sortCol)request=request.order(sortCol,{ascending:!sortDesc,nullsFirst:false});
     const {data,error}=await request;if(error)throw dbError(error);
     return {docs:(data||[]).map(row=>({id:localId(table,row[TABLE_ID]),data:()=>{const copy={...row};delete copy[TABLE_ID];return copy;}}))};
@@ -325,10 +338,10 @@ function queryBuilder(table){
   return q;
 }
 function docRef(table,id){const path=String(id||'').startsWith('/users/')?String(id):legacyPath(table,id);return {
- async set(value,options={}){const row={...value,[TABLE_ID]:path};const {error}=await supabase.from(table).upsert(row,{onConflict:TABLE_ID});if(error)throw dbError(error);},
- async update(value){const {error}=await supabase.from(table).update(value).eq(TABLE_ID,path);if(error)throw dbError(error);},
- async delete(){const {error}=await supabase.from(table).delete().eq(TABLE_ID,path);if(error)throw dbError(error);},
- get:async()=>{const {data,error}=await supabase.from(table).select('*').eq(TABLE_ID,path).maybeSingle();if(error)throw dbError(error);return {exists:!!data,data:()=>{const copy={...(data||{})};delete copy[TABLE_ID];return copy;}}}
+ async set(value,options={}){const row={...value,[TABLE_ID]:path};const {error}=await window.__zmPratasSupabase.from(table).upsert(row,{onConflict:TABLE_ID});if(error)throw dbError(error);},
+ async update(value){const {error}=await window.__zmPratasSupabase.from(table).update(value).eq(TABLE_ID,path);if(error)throw dbError(error);},
+ async delete(){const {error}=await window.__zmPratasSupabase.from(table).delete().eq(TABLE_ID,path);if(error)throw dbError(error);},
+ get:async()=>{const {data,error}=await window.__zmPratasSupabase.from(table).select('*').eq(TABLE_ID,path).maybeSingle();if(error)throw dbError(error);return {exists:!!data,data:()=>{const copy={...(data||{})};delete copy[TABLE_ID];return copy;}}}
 };}
 const db={collection(name){return {doc(id){if(name==='users')return {collection(sub){return queryBuilder(sub);},async set(){}};return docRef(name,id);},...queryBuilder(name)};},async runTransaction(fn){
   // O Supabase/PostgREST não oferece transações multi-operação no navegador.
@@ -336,7 +349,7 @@ const db={collection(name){return {doc(id){if(name==='users')return {collection(
   const operations=[];const tx={async get(ref){return ref.get();},update(ref,data){operations.push(()=>ref.update(data));},set(ref,data){operations.push(()=>ref.set(data));},delete(ref){operations.push(()=>ref.delete());}};
   await fn(tx);for(const op of operations)await op();
 }};
-const storage={from(bucket){return {async upload(path,file,opts){const {data,error}=await supabase.storage.from(bucket).upload(path,file,{contentType:opts?.contentType,upsert:true});if(error)throw error;return {data};},getPublicUrl(path){return supabase.storage.from(bucket).getPublicUrl(path);}}}};
+const storage={from(bucket){return {async upload(path,file,opts){const {data,error}=await window.__zmPratasSupabase.storage.from(bucket).upload(path,file,{contentType:opts?.contentType,upsert:true});if(error)throw error;return {data};},getPublicUrl(path){return window.__zmPratasSupabase.storage.from(bucket).getPublicUrl(path);}}}};
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
 let USER = null, PAGE = 'dashboard';
@@ -384,7 +397,7 @@ async function doRegister(e){
   const labelOriginal=btn.textContent;
   btn.textContent='Criando conta...';
   try{
-    const {data,error}=await supabase.auth.signUp({email,password:pass,options:{data:{display_name:name}}});
+    const {data,error}=await window.__zmPratasSupabase.auth.signUp({email,password:pass,options:{data:{display_name:name}}});
     if(error) throw mapSupabaseError(error);
     if(!data.user) throw new Error('O Supabase não retornou a conta criada. Confira a configuração de autenticação.');
     if(data.session){
@@ -612,7 +625,7 @@ async function uploadFotoProduto(file, produtoId){
   if(!file) return null;
   if(!USER || !USER.uid) throw new Error('Sua sessão expirou. Entre novamente e tente enviar a foto.');
 
-  const {data:sessionData, error:sessionError} = await supabase.auth.getSession();
+  const {data:sessionData, error:sessionError} = await window.__zmPratasSupabase.auth.getSession();
   if(sessionError) throw new Error(`Não foi possível validar sua sessão: ${sessionError.message}`);
   if(!sessionData?.session?.user) throw new Error('Você não está autenticada no Supabase. Saia da conta e entre novamente antes de enviar a foto.');
 
@@ -625,7 +638,7 @@ async function uploadFotoProduto(file, produtoId){
     mime === 'image/svg+xml' ? 'svg' : 'img';
   const path = `${USER.uid}/${produtoId}_${Date.now()}.${extensao}`;
 
-  const {error} = await supabase.storage.from('catalogo-produtos').upload(path, imagem, {
+  const {error} = await window.__zmPratasSupabase.storage.from('catalogo-produtos').upload(path, imagem, {
     contentType: mime,
     upsert: true,
     cacheControl: '31536000'
@@ -640,7 +653,7 @@ async function uploadFotoProduto(file, produtoId){
     }
     throw new Error(`Falha no Supabase Storage: ${error.message || 'erro sem descrição'}${error.statusCode ? ` (HTTP ${error.statusCode})` : ''}`);
   }
-  const {data:publicData} = supabase.storage.from('catalogo-produtos').getPublicUrl(path);
+  const {data:publicData} = window.__zmPratasSupabase.storage.from('catalogo-produtos').getPublicUrl(path);
   if(!publicData?.publicUrl) throw new Error('A foto foi enviada, mas o Supabase não retornou uma URL pública. Confira se o bucket catalogo-produtos está marcado como público.');
   return {url:publicData.publicUrl, path};
 }
