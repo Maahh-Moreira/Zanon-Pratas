@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>ZM Pratas</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
   onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2';"></script>
 <style>
@@ -250,7 +252,7 @@ td{padding:.85rem 1rem}
     </nav>
     <div class="sidebar-footer">
       <div class="user-line" id="user-line">—</div>
-      <div class="sync-badge">Supabase · online</div>
+      <div class="sync-badge">Firebase Auth · Supabase dados</div>
       <button onclick="confirmLogout()">Sair</button>
     </div>
   </aside>
@@ -280,45 +282,17 @@ if (!window.supabase || typeof window.supabase.createClient !== 'function') {
 const SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
 window.__zmPratasSupabase = window.__zmPratasSupabase || window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-const auth = {
-  async createUserWithEmailAndPassword(email,password){
-    const {data,error}=await window.__zmPratasSupabase.auth.signUp({email,password,options:{data:{display_name:''}}});
-    if(error) throw mapSupabaseError(error);
-    return {user:data.user};
-  },
-  async signInWithEmailAndPassword(email,password){
-    const {data,error}=await window.__zmPratasSupabase.auth.signInWithPassword({email,password});
-    if(error) throw mapSupabaseError(error);
-    return data;
-  },
-  async sendPasswordResetEmail(email){
-    const {error}=await window.__zmPratasSupabase.auth.resetPasswordForEmail(email,{redirectTo:location.href});
-    if(error) throw mapSupabaseError(error);
-  },
-  async signOut(){const {error}=await window.__zmPratasSupabase.auth.signOut();if(error)throw mapSupabaseError(error)},
-  onAuthStateChanged(callback){
-    // O Supabase emite INITIAL_SESSION ao registrar o listener.
-    // Não chamar getSession() em paralelo: uma resposta atrasada com sessão nula
-    // pode sobrescrever o evento de login e devolver o usuário para a tela de entrada.
-    let active = true;
-    let lastUserId;
-    const {data:{subscription}} = window.__zmPratasSupabase.auth.onAuthStateChange((event, session) => {
-      const user = session?.user || null;
-      const nextId = user?.id || null;
-      if (event !== 'INITIAL_SESSION' && nextId === lastUserId) return;
-      lastUserId = nextId;
-      Promise.resolve().then(() => {
-        if (active) callback(user ? adaptUser(user) : null);
-      });
-    });
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }
+const firebaseConfig = {
+  apiKey: "AIzaSyBag8vuI8YIx2-REEWCV7d-94hhUokEopk",
+  authDomain: "zm-pratas-2026.firebaseapp.com",
+  projectId: "zm-pratas-2026",
+  storageBucket: "zm-pratas-2026.firebasestorage.app",
+  messagingSenderId: "972536896905",
+  appId: "1:972536896905:web:2e7b476f24c21fefba9558",
+  measurementId: "G-K6G1XGBCND"
 };
-function adaptUser(u){return {...u,uid:u.id,displayName:u.user_metadata?.display_name||u.user_metadata?.name||'',email:u.email};}
-function mapSupabaseError(e){const map={'User already registered':'auth/email-already-in-use','Invalid login credentials':'auth/invalid-credential','Password should be at least 6 characters':'auth/weak-password'};return Object.assign(new Error(e.message),{code:map[e.message]||e.code||'unknown'});}
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const TS = () => new Date().toISOString();
 const LEGACY_DATA_UID = 'HNNimEpUXpZaJG7aRNYwE1JcL5p1';
 const TABLE_ID = 'Document ID';
@@ -397,20 +371,14 @@ async function doRegister(e){
   const labelOriginal=btn.textContent;
   btn.textContent='Criando conta...';
   try{
-    const {data,error}=await window.__zmPratasSupabase.auth.signUp({email,password:pass,options:{data:{display_name:name}}});
-    if(error) throw mapSupabaseError(error);
-    if(!data.user) throw new Error('O Supabase não retornou a conta criada. Confira a configuração de autenticação.');
-    if(data.session){
-      err.textContent='Conta criada! Entrando no sistema...';
-      err.classList.add('show','ok');
-      // O evento de autenticação abrirá o aplicativo.
-    }else{
-      err.textContent='Conta criada. Confirme seu e-mail pelo link enviado antes de entrar.';
-      err.classList.add('show','ok');
-    }
+    const cred=await auth.createUserWithEmailAndPassword(email,pass);
+    await cred.user.updateProfile({displayName:name});
+    // Os dados operacionais continuam no Supabase; a autenticação fica no Firebase.
+    err.textContent='Conta criada com sucesso! Entrando no sistema...';
+    err.classList.add('show','ok');
   }catch(ex){
-    console.error('Erro ao criar conta:',ex);
-    err.textContent=ex?.message || mapErr(ex?.code);
+    console.error('Erro ao criar conta no Firebase Authentication:',ex);
+    err.textContent=mapErr(ex.code);
     err.classList.add('show');
   }finally{
     btn.disabled=false;
