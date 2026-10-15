@@ -422,7 +422,7 @@ async function loadAll(){
   const res=await Promise.all(NAMES.map(async n=>{
     let snap;
     try{ snap=await col(n).orderBy('createdAt','desc').get(); }
-    catch(ex){ if(ex.code==='permission-denied') throw ex; snap=await col(n).get(); }
+    catch(ex){ if(ex.code==='permission-denied') throw new Error(`Tabela ${n}: ${ex.message||ex.code}`); snap=await col(n).get(); }
     return [n, snap.docs.map(d=>({id:d.id,...d.data()}))];
   }));
   DATA=Object.fromEntries(res);
@@ -433,7 +433,12 @@ async function enterApp(){
   document.getElementById('user-line').textContent=USER.email||USER.displayName||'—';
   document.getElementById('content').innerHTML='<div class="empty">Sincronizando...</div>';
   try{ await loadAll(); go('dashboard'); }
-  catch(ex){ showNotice(mapErr(ex.code||''),'error'); document.getElementById('content').innerHTML='<div class="empty">Erro ao carregar dados</div>'; }
+  catch(ex){
+    console.error('Falha ao carregar dados do Supabase:', ex);
+    const detail = ex?.message || ex?.details || ex?.hint || ex?.code || 'Erro desconhecido';
+    showNotice(`Falha ao carregar dados: ${detail}`,'error');
+    document.getElementById('content').innerHTML=`<div class="empty"><strong>Erro ao carregar dados</strong><p style="margin-top:12px;white-space:normal;overflow-wrap:anywhere">${esc(detail)}</p><p style="margin-top:8px">Abra o Console (F12) para ver os detalhes.</p></div>`;
+  }
 }
 auth.onAuthStateChanged(u=>{ if(u){ USER=u; enterApp().catch(ex=>{ console.error('Erro ao abrir o sistema:',ex); showNotice(ex?.message || 'Não foi possível carregar os dados.','error'); }); } else logoutUI(); });
 
