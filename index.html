@@ -284,11 +284,10 @@ const storage = firebase.storage();
 const ZM_SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
 const ZM_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
 const zmSupabaseStorage = window.supabase.createClient(ZM_SUPABASE_URL, ZM_SUPABASE_PUBLISHABLE_KEY, {
-  // Envia o token do Firebase ao Supabase. Requer habilitar Firebase em Supabase > Authentication > Third-Party Auth.
+  // Retorna o token do Firebase quando houver sessão; null durante a inicialização sem usuário conectado.
+  // Requer Firebase habilitado em Supabase > Authentication > Third-Party Auth e a claim role=authenticated.
   accessToken: async () => {
-    const currentUser = firebase.auth().currentUser;
-    if (!currentUser) throw new Error('Você precisa estar logada para enviar fotos.');
-    return await currentUser.getIdToken();
+    return (await firebase.auth().currentUser?.getIdToken(false)) ?? null;
   }
 });
 
