@@ -531,33 +531,69 @@ function renderProdutos(){
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">✏️ Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum produto cadastrado. Clique em “+ Novo produto” para começar.</div>'}</div>`;
 }
 async function prepararFotoProduto(file){
-  // Reduz imagens grandes antes do upload para acelerar a gravação no Storage.
-  if(!file || !file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
-  if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
-  try{
-    const img=await createImageBitmap(file);
-    const max=1200, scale=Math.min(1,max/Math.max(img.width,img.height));
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round(img.width*scale));
-    canvas.height=Math.max(1,Math.round(img.height*scale));
-    const ctx=canvas.getContext('2d');
-    ctx.drawImage(img,0,0,canvas.width,canvas.height); img.close?.();
-    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível preparar a imagem.')),'image/webp',0.82));
-    return new File([blob],`produto-${Date.now()}.webp`,{type:'image/webp'});
-  }catch(err){
-    if(err instanceof Error && err.message==='Não foi possível preparar a imagem.') throw err;
-    // Navegadores sem suporte a createImageBitmap continuam usando o arquivo original.
+  if(!file || !file.type || !file.type.startsWith('image/')) throw new Error('Selecione um arquivo de imagem válido.');
+  if(file.size > 5 * 1024 * 1024) throw new Error('A foto deve ter no máximo 5 MB.');
+
+  // Tenta reduzir a imagem para WebP. Se o navegador não suportar a conversão,
+  // mantém o arquivo original e preserva sua extensão/MIME type.
+  try {
+    if(typeof createImageBitmap !== 'function') return file;
+    const img = await createImageBitmap(file);
+    try {
+      const max = 1200;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext('2d');
+      if(!ctx) return file;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+      if(!blob || blob.type !== 'image/webp') return file;
+      return new File([blob], `produto-${Date.now()}.webp`, {type:'image/webp'});
+    } finally {
+      img.close?.();
+    }
+  } catch (err) {
+    console.warn('Não foi possível otimizar a foto; será enviado o arquivo original.', err);
     return file;
   }
 }
-async function uploadFotoProduto(file,produtoId){
+async function uploadFotoProduto(file, produtoId){
   if(!file) return null;
-  const otimizada=await prepararFotoProduto(file);
-  const path=`${USER.uid}/${produtoId}_${Date.now()}.webp`;
-  const {error}=await supabase.storage.from('catalogo-produtos').upload(path,otimizada,{contentType:otimizada.type,upsert:true,cacheControl:'31536000'});
-  if(error) throw error;
-  const {data}=supabase.storage.from('catalogo-produtos').getPublicUrl(path);
-  return {url:data.publicUrl,path};
+  if(!USER || !USER.uid) throw new Error('Sua sessão expirou. Entre novamente e tente enviar a foto.');
+
+  const {data:sessionData, error:sessionError} = await supabase.auth.getSession();
+  if(sessionError) throw new Error(`Não foi possível validar sua sessão: ${sessionError.message}`);
+  if(!sessionData?.session?.user) throw new Error('Você não está autenticada no Supabase. Saia da conta e entre novamente antes de enviar a foto.');
+
+  const imagem = await prepararFotoProduto(file);
+  const mime = imagem.type || file.type || 'application/octet-stream';
+  const extensao = mime === 'image/webp' ? 'webp' :
+    mime === 'image/png' ? 'png' :
+    mime === 'image/gif' ? 'gif' :
+    mime === 'image/jpeg' ? 'jpg' :
+    mime === 'image/svg+xml' ? 'svg' : 'img';
+  const path = `${USER.uid}/${produtoId}_${Date.now()}.${extensao}`;
+
+  const {error} = await supabase.storage.from('catalogo-produtos').upload(path, imagem, {
+    contentType: mime,
+    upsert: true,
+    cacheControl: '31536000'
+  });
+  if(error){
+    console.error('Supabase Storage upload error:', error);
+    if(error.message?.toLowerCase().includes('row-level security') || error.statusCode === '403'){
+      throw new Error('O Supabase bloqueou o envio por uma regra de segurança (RLS). Confira se a política INSERT do bucket catalogo-produtos permite usuários autenticados e se a pasta inicial do caminho corresponde ao ID do usuário logado.');
+    }
+    if(error.message?.toLowerCase().includes('bucket')){
+      throw new Error('O bucket catalogo-produtos não foi encontrado ou não está acessível. Confira o nome do bucket no Supabase.');
+    }
+    throw new Error(`Falha no Supabase Storage: ${error.message || 'erro sem descrição'}${error.statusCode ? ` (HTTP ${error.statusCode})` : ''}`);
+  }
+  const {data:publicData} = supabase.storage.from('catalogo-produtos').getPublicUrl(path);
+  if(!publicData?.publicUrl) throw new Error('A foto foi enviada, mas o Supabase não retornou uma URL pública. Confira se o bucket catalogo-produtos está marcado como público.');
+  return {url:publicData.publicUrl, path};
 }
 function modalProduto(id){
   const p=byId('produtos',id)||{};
@@ -601,7 +637,7 @@ function modalProduto(id){
       return true;
     }catch(ex){
       console.error('Erro ao salvar produto:',ex);
-      modalError(ex?.message || ex?.userMsg || mapErr(ex?.code) || 'Não foi possível salvar o produto.');
+      modalError(ex?.userMsg || ex?.message || mapErr(ex?.code) || 'Não foi possível salvar o produto.');
       return false;
     }
   });
@@ -996,3 +1032,8 @@ if(localStorage.getItem(THEME_KEY)==='dark'){ document.documentElement.classList
 </script>
 </body>
 </html>
+
+
+
+
+
