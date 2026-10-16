@@ -729,11 +729,11 @@
             object-fit: cover
         }
 
-        .cropper-area { display:none; margin:0 0 .8rem; padding:.55rem; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
-        .cropper-area.show { display:block; }
-        .cropper-stage { width:100%; height: min(62vw, 340px); min-height:220px; overflow:hidden; border-radius:8px; background:#f4f4f5; }
-        .cropper-stage img { display:block; max-width:100%; }
-        .cropper-controls { display:flex; align-items:center; gap:.45rem; padding-top:.6rem; }
+        .crop-popup-overlay { position:fixed; inset:0; z-index:9999; background:rgba(8,15,28,.72); display:flex; align-items:center; justify-content:center; padding:16px; }
+        .crop-popup { width:min(520px,100%); background:var(--surface); border-radius:16px; padding:12px; box-shadow:0 20px 70px rgba(0,0,0,.35); }
+        .crop-popup-stage { width:100%; height:min(68vh,440px); min-height:250px; overflow:hidden; border-radius:10px; background:#f4f4f5; }
+        .crop-popup-stage img { display:block; max-width:100%; }
+        .crop-popup-controls { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding-top:10px; }
         .crop-icon-btn { width:38px; height:36px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); color:var(--text); font-size:1.2rem; cursor:pointer; display:grid; place-items:center; }
         .crop-controls-spacer { flex:1; }
         .crop-icon-btn.crop-cancel { font-size:1.5rem; }
@@ -2102,18 +2102,6 @@
             window.__produtoFotoFile = null; window.__removerFoto = false;
             openModal(p.id ? 'Editar produto' : 'Novo produto', `
     <div id="foto-preview" class="photo-preview">${p.foto ? `<img src="${p.foto}"/>` : '📷 Sem imagem'}</div>
-    <div id="cropper-area" class="cropper-area">
-      <div class="cropper-stage"><img id="cropper-image" alt=""></div>
-      <div class="cropper-controls">
-        <button type="button" class="crop-icon-btn" title="Diminuir zoom" aria-label="Diminuir zoom" onclick="zoomFotoProduto(-.1)">−</button>
-        <button type="button" class="crop-icon-btn" title="Aumentar zoom" aria-label="Aumentar zoom" onclick="zoomFotoProduto(.1)">＋</button>
-        <button type="button" class="crop-icon-btn" title="Girar para a esquerda" aria-label="Girar para a esquerda" onclick="girarFotoProduto(-90)">↶</button>
-        <button type="button" class="crop-icon-btn" title="Girar para a direita" aria-label="Girar para a direita" onclick="girarFotoProduto(90)">↷</button>
-        <span class="crop-controls-spacer"></span>
-        <button type="button" class="crop-icon-btn crop-cancel" title="Cancelar recorte" aria-label="Cancelar recorte" onclick="cancelarRecorteProduto()">×</button>
-        <button type="button" class="crop-icon-btn crop-confirm" title="Confirmar recorte" aria-label="Confirmar recorte" onclick="confirmarRecorteProduto()">✓</button>
-      </div>
-    </div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
       <label class="btn btn-outline btn-sm" style="cursor:pointer">📷 Escolher foto<input id="f-foto" type="file" accept="image/*" style="display:none" onchange="previewProdutoFoto(this)"/></label>
       <button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">🗑️ Retirar imagem</button>
@@ -2184,6 +2172,28 @@
         let produtoCropper = null;
         let produtoFotoOriginal = null;
 
+        function criarPopupRecorte() {
+            document.getElementById('popup-recorte-produto')?.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'popup-recorte-produto';
+            overlay.className = 'crop-popup-overlay';
+            overlay.innerHTML = `
+                <div class="crop-popup" role="dialog" aria-modal="true" aria-label="Recortar imagem">
+                    <div class="crop-popup-stage"><img id="cropper-image" alt=""></div>
+                    <div class="crop-popup-controls">
+                        <button type="button" class="crop-icon-btn" title="Diminuir zoom" aria-label="Diminuir zoom" onclick="zoomFotoProduto(-.1)">−</button>
+                        <button type="button" class="crop-icon-btn" title="Aumentar zoom" aria-label="Aumentar zoom" onclick="zoomFotoProduto(.1)">＋</button>
+                        <button type="button" class="crop-icon-btn" title="Girar à esquerda" aria-label="Girar à esquerda" onclick="girarFotoProduto(-90)">↶</button>
+                        <button type="button" class="crop-icon-btn" title="Girar à direita" aria-label="Girar à direita" onclick="girarFotoProduto(90)">↷</button>
+                        <span class="crop-controls-spacer"></span>
+                        <button type="button" class="crop-icon-btn crop-cancel" title="Cancelar" aria-label="Cancelar" onclick="cancelarRecorteProduto()">×</button>
+                        <button type="button" class="crop-icon-btn crop-confirm" title="Confirmar" aria-label="Confirmar" onclick="confirmarRecorteProduto()">✓</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            return overlay.querySelector('#cropper-image');
+        }
+
         function previewProdutoFoto(input) {
             const f = input.files?.[0]; if (!f) return;
             if (!f.type.startsWith('image/')) {showNotice('Selecione uma imagem válida.', 'error'); input.value = ''; return;}
@@ -2193,31 +2203,19 @@
             window.__produtoFotoFile = null;
             window.__removerFoto = false;
             const reader = new FileReader();
+            reader.onerror = () => {showNotice('Não foi possível abrir esta imagem.', 'error'); input.value = '';};
             reader.onload = e => {
-                const area = document.getElementById('cropper-area');
-                const image = document.getElementById('cropper-image');
-                if (!area || !image) return;
                 produtoFotoOriginal = e.target.result;
+                const image = criarPopupRecorte();
                 image.onload = () => {
-                    area.classList.add('show');
                     produtoCropper = new Cropper(image, {
-                        aspectRatio: 1,
-                        viewMode: 1,
-                        dragMode: 'move',
-                        autoCropArea: .82,
-                        responsive: true,
-                        restore: false,
-                        guides: true,
-                        center: true,
-                        highlight: false,
-                        background: false,
-                        movable: true,
-                        zoomable: true,
-                        rotatable: true,
-                        scalable: false,
-                        checkOrientation: true
+                        aspectRatio: 1, viewMode: 1, dragMode: 'move', autoCropArea: .82,
+                        responsive: true, restore: false, guides: true, center: true,
+                        highlight: false, background: false, movable: true, zoomable: true,
+                        rotatable: true, scalable: false, checkOrientation: true
                     });
                 };
+                image.onerror = () => {document.getElementById('popup-recorte-produto')?.remove(); showNotice('Não foi possível abrir esta imagem.', 'error'); input.value = '';};
                 image.src = produtoFotoOriginal;
             };
             reader.readAsDataURL(f);
@@ -2226,8 +2224,7 @@
         function girarFotoProduto(graus) { if (produtoCropper) produtoCropper.rotate(graus); }
         function cancelarRecorteProduto() {
             if (produtoCropper) {produtoCropper.destroy(); produtoCropper = null;}
-            const area = document.getElementById('cropper-area');
-            if (area) area.classList.remove('show');
+            document.getElementById('popup-recorte-produto')?.remove();
             const input = document.getElementById('f-foto');
             if (input) input.value = '';
         }
@@ -2240,21 +2237,25 @@
             if (!canvas) {showNotice('Não foi possível gerar o recorte desta imagem.', 'error'); return;}
             canvas.toBlob(blob => {
                 if (!blob) {showNotice('Não foi possível preparar a imagem recortada.', 'error'); return;}
-                window.__produtoFotoFile = new File([blob], `produto-recortado-${Date.now()}.jpg`, {type: 'image/jpeg', lastModified: Date.now()});
-                window.__removerFoto = false;
-                const preview = document.getElementById('foto-preview');
-                if (preview) preview.innerHTML = `<img src="${canvas.toDataURL('image/jpeg', .92)}" alt="Prévia da imagem recortada"/>`;
-                if (produtoCropper) {produtoCropper.destroy(); produtoCropper = null;}
-                const area = document.getElementById('cropper-area');
-                if (area) area.classList.remove('show');
-                const input = document.getElementById('f-foto');
-                if (input) input.value = '';
+                try {
+                    window.__produtoFotoFile = new File([blob], `produto-recortado-${Date.now()}.jpg`, {type: 'image/jpeg', lastModified: Date.now()});
+                    window.__removerFoto = false;
+                    const preview = document.getElementById('foto-preview');
+                    if (preview) preview.innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Prévia da imagem recortada"/>`;
+                    if (produtoCropper) {produtoCropper.destroy(); produtoCropper = null;}
+                    document.getElementById('popup-recorte-produto')?.remove();
+                    const input = document.getElementById('f-foto');
+                    if (input) input.value = '';
+                } catch (err) {
+                    console.error('Erro ao preparar recorte:', err);
+                    showNotice('Não foi possível preparar a imagem para salvar.', 'error');
+                }
             }, 'image/jpeg', .92);
         }
         function removerFotoProduto() {
             if (produtoCropper) {produtoCropper.destroy(); produtoCropper = null;}
+            document.getElementById('popup-recorte-produto')?.remove();
             window.__removerFoto = true; window.__produtoFotoFile = null;
-            const area = document.getElementById('cropper-area'); if (area) area.classList.remove('show');
             const el = document.getElementById('foto-preview'); if (el) el.innerHTML = '📷 Sem imagem';
             const input = document.getElementById('f-foto'); if (input) input.value = '';
         }
