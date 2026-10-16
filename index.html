@@ -737,7 +737,7 @@
         .crop-icon-btn { width:38px; height:36px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); color:var(--text); font-size:1.2rem; cursor:pointer; display:grid; place-items:center; }
         .crop-controls-spacer { flex:1; }
         .crop-icon-btn.crop-cancel { font-size:1.5rem; }
-        .crop-icon-btn.crop-confirm { background:var(--primary); color:white; border-color:var(--primary); font-weight:700; }
+        .crop-icon-btn.crop-confirm { display:grid !important; visibility:visible !important; opacity:1 !important; flex:0 0 42px; width:42px; height:40px; background:#16a34a !important; color:#fff !important; border:2px solid #15803d !important; font-size:1.5rem; font-weight:800; position:relative; z-index:10001; }
         .cropper-container { border-radius:8px; }
 
         .receipt-print {
@@ -2186,8 +2186,8 @@
                         <button type="button" class="crop-icon-btn" title="Girar à esquerda" aria-label="Girar à esquerda" onclick="girarFotoProduto(-90)">↶</button>
                         <button type="button" class="crop-icon-btn" title="Girar à direita" aria-label="Girar à direita" onclick="girarFotoProduto(90)">↷</button>
                         <span class="crop-controls-spacer"></span>
+                        <button type="button" class="crop-icon-btn crop-confirm" title="Salvar recorte" aria-label="Salvar recorte" onclick="confirmarRecorteProduto()">✓</button>
                         <button type="button" class="crop-icon-btn crop-cancel" title="Cancelar" aria-label="Cancelar" onclick="cancelarRecorteProduto()">×</button>
-                        <button type="button" class="crop-icon-btn crop-confirm" title="Confirmar" aria-label="Confirmar" onclick="confirmarRecorteProduto()">✓</button>
                     </div>
                 </div>`;
             document.body.appendChild(overlay);
