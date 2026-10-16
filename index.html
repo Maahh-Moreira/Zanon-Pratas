@@ -729,6 +729,17 @@
             object-fit: cover
         }
 
+        .cropper-area { display:none; margin:0 0 .8rem; padding:.55rem; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+        .cropper-area.show { display:block; }
+        .cropper-stage { width:100%; height: min(62vw, 340px); min-height:220px; overflow:hidden; border-radius:8px; background:#f4f4f5; }
+        .cropper-stage img { display:block; max-width:100%; }
+        .cropper-controls { display:flex; align-items:center; gap:.45rem; padding-top:.6rem; }
+        .crop-icon-btn { width:38px; height:36px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); color:var(--text); font-size:1.2rem; cursor:pointer; display:grid; place-items:center; }
+        .crop-controls-spacer { flex:1; }
+        .crop-icon-btn.crop-cancel { font-size:1.5rem; }
+        .crop-icon-btn.crop-confirm { background:var(--primary); color:white; border-color:var(--primary); font-weight:700; }
+        .cropper-container { border-radius:8px; }
+
         .receipt-print {
             display: none
         }
@@ -2092,15 +2103,15 @@
             openModal(p.id ? 'Editar produto' : 'Novo produto', `
     <div id="foto-preview" class="photo-preview">${p.foto ? `<img src="${p.foto}"/>` : '📷 Sem imagem'}</div>
     <div id="cropper-area" class="cropper-area">
-      <div class="cropper-hint">Arraste a imagem para enquadrar e use o zoom para destacar a joia. O recorte será usado na foto do produto.</div>
-      <div class="cropper-stage"><img id="cropper-image" alt="Enquadre a imagem do produto"></div>
+      <div class="cropper-stage"><img id="cropper-image" alt=""></div>
       <div class="cropper-controls">
-        <button type="button" class="btn btn-outline btn-sm" onclick="zoomFotoProduto(.1)">＋ Zoom</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="zoomFotoProduto(-.1)">− Zoom</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="girarFotoProduto(-90)">↶ Girar</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="girarFotoProduto(90)">↷ Girar</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="confirmarRecorteProduto()">✓ Usar este recorte</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="cancelarRecorteProduto()">Cancelar</button>
+        <button type="button" class="crop-icon-btn" title="Diminuir zoom" aria-label="Diminuir zoom" onclick="zoomFotoProduto(-.1)">−</button>
+        <button type="button" class="crop-icon-btn" title="Aumentar zoom" aria-label="Aumentar zoom" onclick="zoomFotoProduto(.1)">＋</button>
+        <button type="button" class="crop-icon-btn" title="Girar para a esquerda" aria-label="Girar para a esquerda" onclick="girarFotoProduto(-90)">↶</button>
+        <button type="button" class="crop-icon-btn" title="Girar para a direita" aria-label="Girar para a direita" onclick="girarFotoProduto(90)">↷</button>
+        <span class="crop-controls-spacer"></span>
+        <button type="button" class="crop-icon-btn crop-cancel" title="Cancelar recorte" aria-label="Cancelar recorte" onclick="cancelarRecorteProduto()">×</button>
+        <button type="button" class="crop-icon-btn crop-confirm" title="Confirmar recorte" aria-label="Confirmar recorte" onclick="confirmarRecorteProduto()">✓</button>
       </div>
     </div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
