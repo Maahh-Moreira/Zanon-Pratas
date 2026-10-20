@@ -622,7 +622,7 @@ function modalVenda(){
     <div class="field"><label>Cliente</label><select id="f-cli">${oc}</select></div>
     <div class="field"><label>Itens da venda</label><div id="sale-items" class="sales-items"></div><button type="button" class="btn btn-outline btn-sm" onclick="addSaleItem()">+ Adicionar produto</button></div>
     <div class="row-2"><div class="field"><label>Desconto / acréscimo</label><div style="display:flex;gap:.4rem"><input id="f-dsc" type="number" step="0.01" min="0" placeholder="0" oninput="calcSale()"/><select id="f-dtipo" onchange="calcSale()" style="width:96px;flex:none"><option value="-r">Desc. R$</option><option value="-p">Desc. %</option><option value="+r">Acrésc. R$</option><option value="+p">Acrésc. %</option></select></div></div><div class="field"><label>Total da venda</label><input id="f-val" type="number" step="0.01" min="0" readonly/></div></div>
-    <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div><div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option>${[2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">${n} vezes</option>`).join('')}</select></div></div>
+    <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div><div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option><option value="2">A prazo — 2 parcelas</option>${[3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">A prazo — ${n} parcelas</option>`).join('')}</select></div></div>
     <div id="box-2x" style="display:none"><div class="row-2"><div class="field"><label>Vencimento da 2ª parcela</label><input id="f-venc2" type="date" value="${addDays(today(),30)}"/></div><div class="field"><label>1ª parcela (entrada)</label><select id="f-pago1"><option value="1">Já paga</option><option value="0">Pendente</option></select></div></div><p class="modal-msg">As parcelas seguintes vencem mensalmente.</p></div>
     <div class="row-2"><div class="field"><label>Forma de pagamento</label><select id="f-forma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select></div><div class="field"><label>Valor recebido / entrada</label><input id="f-recebido" type="number" step="0.01" min="0" value="0" oninput="calcTroco()"/></div></div>
     <div id="troco-box" class="modal-msg">Troco: <strong>R$ 0,00</strong></div>`,async()=>{
@@ -910,7 +910,7 @@ function renderReinvest(){
   const [de,ate]=rangeDates(), inR=l=>l.filter(x=>(x.data||'')>=de&&(x.data||'')<=ate);
   const vs=inR(DATA.vendas).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
   const rs=inR(DATA.reinvestimentos).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
-  const vend=total(vs), custo=vs.reduce((s,v)=>s+custoVenda(v),0), gas=total(inR(DATA.gastos)), comp=total(inR(DATA.compras));
+  const vend=vs.reduce((s,v)=>s+recebidoVenda(v),0), custo=vs.reduce((s,v)=>{const totalVenda=Number(v.valor||0); const recebido=recebidoVenda(v); const proporcao=totalVenda>0?Math.min(1,recebido/totalVenda):0; return s+custoVenda(v)*proporcao;},0), gas=total(inR(DATA.gastos)), comp=total(inR(DATA.compras));
   const lucroBruto=vend-custo, lucroLiquido=lucroBruto-gas;
   const retir=total(rs,'retirada'), reinv=total(rs,'reinvestimento');
   const rec=DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0), ct=total(DATA.compras), gt=total(DATA.gastos);
@@ -946,7 +946,7 @@ function renderReinvest(){
     </div>
   </div>
   <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-    ${k('💰 Total vendido',vend,vs.length+' venda(s) no período')}
+    ${k('💰 Valor recebido',vend,vs.length+' venda(s) no período; somente pagamentos recebidos')}
     ${k('📦 Custo das joias',custo,'Capital das peças vendidas')}
     ${k('📈 Lucro bruto',lucroBruto,'Vendas − custo das joias')}
     ${k('💎 Lucro após gastos',lucroLiquido,'Lucro bruto − gastos')}
@@ -958,8 +958,8 @@ function renderReinvest(){
   <div class="card"><div class="card-header"><h3>Retiradas e reinvestimentos</h3><span class="meta">${rs.length} registro(s)</span></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Retirada</th><th>Reinvestimento</th><th>Observação</th><th></th></tr></thead><tbody>
     ${rs.map(r=>`<tr><td>${fmtDate(r.data)}</td><td>${r.retirada>0?`<strong style="color:var(--danger)">${money(r.retirada)}</strong>`:'—'}</td><td>${r.reinvestimento>0?`<strong style="color:var(--success)">${money(r.reinvestimento)}</strong>`:'—'}</td><td>${esc(r.obs||'—')}</td><td><button class="btn btn-danger btn-sm" onclick="delReinvestimento('${r.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhuma retirada ou reinvestimento registrado no período</td></tr>'}
   </tbody></table></div></div>
-  <div class="card"><div class="card-header"><h3>Vendas do período</h3></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Vendido</th><th>Custo</th><th>Lucro</th></tr></thead><tbody>
-  ${vs.map(v=>{const c=custoVenda(v),l=Number(v.valor||0)-c;return `<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(v.valor)}</td><td>${money(c)}</td><td><strong style="color:${l<0?'var(--danger)':'var(--success)'}">${money(l)}</strong></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Nenhuma venda no período</td></tr>'}
+  <div class="card"><div class="card-header"><h3>Vendas e recebimentos do período</h3></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Recebido</th><th>Custo proporcional</th><th>Lucro estimado</th></tr></thead><tbody>
+  ${vs.map(v=>{const recebido=recebidoVenda(v),totalVenda=Number(v.valor||0),proporcao=totalVenda>0?Math.min(1,recebido/totalVenda):0,c=custoVenda(v)*proporcao,l=recebido-c;return `<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(recebido)}</td><td>${money(c)}</td><td><strong style="color:${l<0?'var(--danger)':'var(--success)'}">${money(l)}</strong></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Nenhuma venda no período</td></tr>'}
   </tbody></table></div></div>`;
 }
 // Aviso ao registrar compra: compara com o valor disponível para novas compras.
