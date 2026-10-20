@@ -889,9 +889,12 @@ function modalReinvestimento(){
     <div class="modal-msg">Caixa livre antes deste registro: <strong>${money(caixaLivre())}</strong></div>`,async()=>{
       const retirada=+val('f-retirada')||0, reinvestimento=+val('f-reinv')||0;
       if(retirada<=0 && reinvestimento<=0){ modalError('Informe um valor para retirada ou reinvestimento.'); return false; }
-      // Registrar a movimentação real mesmo quando ela ultrapassa o caixa calculado.
-      // O saldo poderá ficar negativo e mostrar a diferença a conferir, em vez de impedir
-      // que o usuário registre um dinheiro que já separou/retirou.
+      const disponivel=Math.max(0,round2(caixaLivre()));
+      const totalMovimento=round2(retirada+reinvestimento);
+      if(totalMovimento>disponivel){
+        modalError(`Não é possível registrar R$ ${totalMovimento.toFixed(2).replace('.', ',')} porque o caixa livre disponível é de R$ ${disponivel.toFixed(2).replace('.', ',')}. O sistema considera somente o dinheiro já recebido, descontando compras, gastos, retiradas e a reserva existente. Parcelas pendentes não podem ser usadas. Confira os valores ou aguarde o recebimento.`);
+        return false;
+      }
       await col('reinvestimentos').add({data:val('f-data')||today(),retirada,reinvestimento,obs:val('f-obs'),createdAt:TS()});
       return true;
     },{okMsg:'Registro salvo'});
@@ -912,11 +915,24 @@ function renderReinvest(){
   const tabs=[['dia','Hoje'],['semana','Semana'],['mes','Mês'],['tudo','Tudo'],['custom','Personalizado']];
   const k=(l,v,s)=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${money(v)}</div>${s?`<div class="kpi-sub">${s}</div>`:''}</div>`;
   return `<div class="hero ${livre<0?'neg':''}">
-    <div class="hero-label">💵 Caixa livre para você decidir</div>
-    <div class="hero-value">${money(livre)}</div>
-    <div class="hero-eq">Recebido ${money(rec)} − Compras ${money(ct)} − Gastos ${money(gt)} − Retiradas ${money(totalRetiradas())} − Reservado ${money(totalSeparadoReinvestimento())}</div>
-    ${pend>0?`<div class="hero-eq">Ainda a receber em parcelas: ${money(pend)} (não incluído no caixa)</div>`:''}
-    ${livre<0?`<div class="hero-eq">⚠️ Há uma diferença de ${money(Math.abs(livre))} entre as movimentações registradas e o caixa recebido. Confira valores ainda não recebidos, gastos e retiradas.</div>`:''}
+    <div class="hero-label">💵 DINHEIRO REALMENTE DISPONÍVEL PARA REINVESTIR</div>
+    <div class="hero-value">${money(Math.max(0,livre))}</div>
+    <div class="hero-eq">Este é o limite para novas retiradas e reservas. O cálculo usa apenas dinheiro recebido e desconta compras, gastos, retiradas e valores já separados.</div>
+    ${livre<0?`<div class="hero-eq">⚠️ O caixa está negativo em ${money(Math.abs(livre))}. Não é possível registrar nova retirada ou reserva até conferir os lançamentos.</div>`:''}
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+    ${k('💰 Dinheiro já recebido',rec,'Somente parcelas pagas e vendas recebidas')}
+    ${k('⏳ Ainda a receber',pend,'Não pode ser usado para investir')}
+    ${k('🛒 Compras realizadas',ct)}
+    ${k('💸 Gastos registrados',gt)}
+    ${k('🙋 Retiradas já feitas',totalRetiradas())}
+    ${k('🔒 Reserva de reinvestimento restante',saldoReservaReinvestimento(),'Já separada; não está livre para usar novamente')}
+    ${k('✅ Disponível para novas separações',Math.max(0,livre),'Valor máximo que pode ser retirado ou separado')}
+  </div>
+  <div class="card" style="border:2px solid var(--primary);padding:1rem;margin-bottom:1rem">
+    <h3 style="margin-top:0">Importante sobre o reinvestimento</h3>
+    <p style="margin-bottom:.4rem">O sistema <strong>não considera parcelas pendentes como dinheiro disponível</strong>. Você só pode registrar retirada e/ou reinvestimento até o limite de <strong>${money(Math.max(0,livre))}</strong>.</p>
+    <p style="margin-bottom:0">Se a cliente ainda não pagou uma parcela, esse valor aparece em “Ainda a receber” e fica fora do caixa para investir.</p>
   </div>
   <div class="toolbar">
     <div style="display:flex;gap:.4rem;flex-wrap:wrap">${tabs.map(([t,l])=>`<button class="btn btn-sm ${RANGE.tipo===t?'btn-primary':'btn-outline'}" onclick="setRange('${t}')">${l}</button>`).join('')}</div>
