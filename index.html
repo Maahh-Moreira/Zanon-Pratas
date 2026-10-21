@@ -7,8 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f4f7fb;--surface:#fff;--surface-2:#f8fafc;--ink:#0f172a;--muted:#5b6b82;--border:#e2e8f0;--blue-deep:#0a1628;--blue-dark:#0f2744;--blue-mid:#163a5f;--blue-accent:#3b82f6;--blue-soft:#dbeafe;--blue-50:#eff6ff;--success:#059669;--danger:#dc2626;--shadow:0 1px 3px rgba(15,39,68,.06),0 8px 24px rgba(15,39,68,.04);--radius:12px;--sidebar:240px}
 html.dark{--bg:#0b1220;--surface:#111827;--surface-2:#0f172a;--ink:#e5eefb;--muted:#94a3b8;--border:#1e293b;--blue-deep:#060d18;--blue-dark:#0b1a2e;--blue-mid:#12263f;--blue-soft:#1e3a5f;--blue-50:#132337;--shadow:0 1px 3px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25)}
@@ -277,15 +276,76 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-const TS = () => firebase.firestore.FieldValue.serverTimestamp();
+// Firebase fica somente para autenticação. Os dados e fotos usam Supabase.
+const SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const TS = () => new Date().toISOString();
+const SUPABASE_BUCKET = 'catalogo-produtos';
+const DB_ID_COLUMN = 'Document ID';
+function dbError(message, code='supabase-error'){ const e=new Error(message); e.code=code; return e; }
+function tablePath(table,id){ return table==='users' ? `/users/${id}` : `/users/${USER.uid}/${table}/${id}`; }
+function idFromRow(row, table){
+  const path=row?.[DB_ID_COLUMN] || row?.document_id || row?.documentId || '';
+  if(path) return String(path).split('/').filter(Boolean).pop();
+  if(row?.id!=null) return String(row.id);
+  return '';
+}
+function rowToData(row,table){ const out={...row}; const id=idFromRow(row,table); delete out[DB_ID_COLUMN]; delete out.document_id; delete out.documentId; out.id=id; if(!out.foto && out.imagem_url) out.foto=out.imagem_url; return out; }
+function dataToRow(table,id,data){
+  const out={...data}; delete out.id;
+  // O schema existente usa a coluna textual "Document ID" como identificador.
+  out[DB_ID_COLUMN]=tablePath(table,id);
+  if(table==='produtos' && out.foto && !out.imagem_url) out.imagem_url=out.foto;
+  return out;
+}
+function makeDocRef(table,id){
+  const ref={id,
+    async get(){ const path=tablePath(table,id); const {data,error}=await sb.from(table).select('*').eq(DB_ID_COLUMN,path).maybeSingle(); if(error) throw dbError(`Supabase (${table}): ${error.message}`,error.code); return {exists:!!data,data:()=>data?rowToData(data,table):undefined,id}; },
+    async set(payload,opts={}){ const row=dataToRow(table,id,payload); if(opts.merge){ const old=await ref.get(); if(old.exists) Object.assign(row,dataToRow(table,id,{...old.data(),...payload})); } const {error}=await sb.from(table).upsert(row,{onConflict:DB_ID_COLUMN}); if(error) throw dbError(`Não foi possível salvar em ${table}: ${error.message}`,error.code); },
+    async update(payload){ const path=tablePath(table,id); const row={...payload}; delete row.id; if(table==='produtos' && row.foto) row.imagem_url=row.foto; const {data,error}=await sb.from(table).update(row).eq(DB_ID_COLUMN,path).select(DB_ID_COLUMN); if(error) throw dbError(`Não foi possível atualizar ${table}: ${error.message}`,error.code); if(!data?.length) throw dbError(`Registro não encontrado em ${table}.`,'not-found'); },
+    async delete(){ const {error}=await sb.from(table).delete().eq(DB_ID_COLUMN,tablePath(table,id)); if(error) throw dbError(`Não foi possível excluir de ${table}: ${error.message}`,error.code); }
+  }; return ref;
+}
+function makeCollectionRef(table){
+  const c={
+    doc(id){ if(!id) id=(crypto.randomUUID?crypto.randomUUID():`${Date.now()}_${Math.random().toString(36).slice(2)}`); return makeDocRef(table,String(id)); },
+    async add(data){ const r=c.doc(); await r.set(data); return r; },
+    orderBy(field,direction='asc'){ return {get:()=>c.get(field,direction)}; },
+    async get(field,direction){
+      const {data,error}=await sb.from(table).select('*').like(DB_ID_COLUMN,table==='users'?`/users/%`:`/users/${USER.uid}/${table}/%`);
+      if(error){
+        if(table==='compras' && /does not exist|schema cache|Could not find the table/i.test(error.message)){
+          console.warn('A tabela compras ainda não existe no Supabase. A tela abrirá sem histórico de compras até ela ser criada.');
+          return {docs:[]};
+        }
+        throw dbError(`Não foi possível carregar ${table}: ${error.message}`,error.code);
+      }
+      let rows=(data||[]).map(r=>rowToData(r,table)); if(field) rows.sort((a,b)=>String(a[field]||'').localeCompare(String(b[field]||''))*(direction==='desc'?-1:1)); return {docs:rows.map(r=>({id:r.id,data:()=>r,exists:true}))};
+    }
+  }; return c;
+}
+const db={
+  collection(name){
+    return {doc(id){ const root=makeDocRef(name,id); if(name==='users') root.collection=(child)=>makeCollectionRef(child); return root; }};
+  },
+  async runTransaction(callback){
+    // Supabase REST não oferece transações multi-tabela pelo cliente; enfileiramos as alterações.
+    const ops=[]; const tx={
+      async get(ref){ return await ref.get(); },
+      update(ref,data){ ops.push(()=>ref.update(data)); },
+      set(ref,data){ ops.push(()=>ref.set(data,{merge:true})); },
+      delete(ref){ ops.push(()=>ref.delete()); }
+    };
+    const result=await callback(tx); for(const op of ops) await op(); return result;
+  }
+};
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
 let USER = null, PAGE = 'dashboard';
 let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[], reinvestimentos:[], avisos:[] };
 
-const col = n => db.collection('users').doc(USER.uid).collection(n);
+const col = n => makeCollectionRef(n);
 const money = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 // Corrigido: usa a data local (não UTC), evitando "amanhã" após as 21h
 function today(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
@@ -306,7 +366,7 @@ function mapErr(code){
     'auth/invalid-credential':'E-mail ou senha incorretos.',
     'auth/too-many-requests':'Muitas tentativas. Tente mais tarde.',
     'auth/network-request-failed':'Sem conexão. Verifique a internet.',
-    'permission-denied':'Permissão negada no Firestore. Ajuste as regras de segurança.'
+    'permission-denied':'Permissão negada no banco. Confira as políticas de acesso do Supabase.'
   })[code] || 'Não foi possível concluir. Tente novamente.';
 }
 
@@ -350,8 +410,7 @@ function logoutUI(){ USER=null; DATA={produtos:[],clientes:[],vendas:[],compras:
 async function loadAll(){
   const res=await Promise.all(NAMES.map(async n=>{
     let snap;
-    try{ snap=await col(n).orderBy('createdAt','desc').get(); }
-    catch(ex){ if(ex.code==='permission-denied') throw ex; snap=await col(n).get(); }
+    snap=await col(n).orderBy('createdAt','desc').get();
     return [n, snap.docs.map(d=>({id:d.id,...d.data()}))];
   }));
   DATA=Object.fromEntries(res);
@@ -382,8 +441,8 @@ function openModal(title, body, onSave, opts={}){
       if(terminou) return;
       btn.disabled=false;
       btn.textContent=opts.saveLabel||'Salvar';
-      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Firebase.');
-      showNotice('O salvamento está demorando. Verifique a conexão com o Firebase.','error');
+      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Supabase.');
+      showNotice('O salvamento está demorando. Verifique a conexão com o Supabase.','error');
     },12000);
     try{
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
@@ -532,10 +591,11 @@ async function uploadFotoProduto(file,produtoId){
   if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
   if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
   const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg');
-  const path=`users/${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
-  const ref=storage.ref(path);
-  await ref.put(file,{contentType:file.type});
-  return {url:await ref.getDownloadURL(),path};
+  const path=`${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
+  const {error}=await sb.storage.from(SUPABASE_BUCKET).upload(path,file,{contentType:file.type,upsert:true});
+  if(error) throw dbError(`Erro no Supabase Storage: ${error.message}`,error.statusCode);
+  const {data}=sb.storage.from(SUPABASE_BUCKET).getPublicUrl(path);
+  return {url:data.publicUrl,path};
 }
 function modalProduto(id){
   const p=byId('produtos',id)||{};
@@ -556,19 +616,17 @@ function modalProduto(id){
     if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
       let produtoId=p.id || col('produtos').doc().id;
-      // Primeiro salva os dados do produto no Firestore.
-      // Assim, se houver algum problema no Storage, o produto não é perdido.
+      // Salva o registro no Supabase antes de enviar a foto, para não perder os dados do produto.
       let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
       const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
-      if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Firebase Firestore não foi inicializado. Recarregue a página.'});
-      // O produto é salvo PRIMEIRO no Firestore. A foto nunca bloqueia o cadastro.
-      const produtoRef=db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
+      if(!sb) throw Object.assign(new Error('Supabase não foi inicializado.'),{userMsg:'O Supabase não foi inicializado. Recarregue a página.'});
+      const produtoRef=col('produtos').doc(produtoId);
       await Promise.race([
         produtoRef.set(payload,{merge:true}),
-        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Firestore não respondeu em 15 segundos.'),{userMsg:'O Firestore não respondeu em 15 segundos. Verifique a internet e as regras do Firestore.'})),15000))
+        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Supabase não respondeu em 15 segundos.'),{userMsg:'O Supabase não respondeu em 15 segundos. Confira a conexão e as permissões do banco.'})),15000))
       ]);
 
       // Depois envia a nova foto, se houver.
@@ -578,7 +636,7 @@ function modalProduto(id){
           await produtoRef.set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
         }catch(photoErr){
           console.error('Erro ao enviar foto:',photoErr);
-          toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
+          toast('Produto salvo, mas a foto não foi enviada. Confira as políticas do bucket no Supabase.');
         }
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
