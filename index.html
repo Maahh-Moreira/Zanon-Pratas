@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f4f7fb;--surface:#fff;--surface-2:#f8fafc;--ink:#0f172a;--muted:#5b6b82;--border:#e2e8f0;--blue-deep:#0a1628;--blue-dark:#0f2744;--blue-mid:#163a5f;--blue-accent:#3b82f6;--blue-soft:#dbeafe;--blue-50:#eff6ff;--success:#059669;--danger:#dc2626;--shadow:0 1px 3px rgba(15,39,68,.06),0 8px 24px rgba(15,39,68,.04);--radius:12px;--sidebar:240px}
@@ -240,7 +242,6 @@ td{padding:.85rem 1rem}
       <button class="nav-item active" data-page="dashboard" onclick="go('dashboard')"><span class="ico">◈</span><span>Dashboard</span></button>
       <div class="nav-group-title">Operação</div>
       <button class="nav-item" data-page="produtos" onclick="go('produtos')"><span class="ico">◆</span><span>Produtos</span></button>
-      <button class="nav-item" data-page="simulador" onclick="go('simulador')"><span class="ico">％</span><span>Simulador</span></button>
       <button class="nav-item" data-page="vendas" onclick="go('vendas')"><span class="ico">▲</span><span>Vendas</span></button>
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
       <button class="nav-item" data-page="mural" onclick="go('mural')"><span class="ico">▤</span><span>Mural de avisos</span></button>
@@ -276,76 +277,28 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-// Firebase fica somente para autenticação. Os dados e fotos usam Supabase.
-const SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const TS = () => new Date().toISOString();
-const SUPABASE_BUCKET = 'catalogo-produtos';
-const DB_ID_COLUMN = 'Document ID';
-function dbError(message, code='supabase-error'){ const e=new Error(message); e.code=code; return e; }
-function tablePath(table,id){ return table==='users' ? `/users/${id}` : `/users/${USER.uid}/${table}/${id}`; }
-function idFromRow(row, table){
-  const path=row?.[DB_ID_COLUMN] || row?.document_id || row?.documentId || '';
-  if(path) return String(path).split('/').filter(Boolean).pop();
-  if(row?.id!=null) return String(row.id);
-  return '';
-}
-function rowToData(row,table){ const out={...row}; const id=idFromRow(row,table); delete out[DB_ID_COLUMN]; delete out.document_id; delete out.documentId; out.id=id; if(!out.foto && out.imagem_url) out.foto=out.imagem_url; return out; }
-function dataToRow(table,id,data){
-  const out={...data}; delete out.id;
-  // O schema existente usa a coluna textual "Document ID" como identificador.
-  out[DB_ID_COLUMN]=tablePath(table,id);
-  if(table==='produtos' && out.foto && !out.imagem_url) out.imagem_url=out.foto;
-  return out;
-}
-function makeDocRef(table,id){
-  const ref={id,
-    async get(){ const path=tablePath(table,id); const {data,error}=await sb.from(table).select('*').eq(DB_ID_COLUMN,path).maybeSingle(); if(error) throw dbError(`Supabase (${table}): ${error.message}`,error.code); return {exists:!!data,data:()=>data?rowToData(data,table):undefined,id}; },
-    async set(payload,opts={}){ const row=dataToRow(table,id,payload); if(opts.merge){ const old=await ref.get(); if(old.exists) Object.assign(row,dataToRow(table,id,{...old.data(),...payload})); } const {error}=await sb.from(table).upsert(row,{onConflict:DB_ID_COLUMN}); if(error) throw dbError(`Não foi possível salvar em ${table}: ${error.message}`,error.code); },
-    async update(payload){ const path=tablePath(table,id); const row={...payload}; delete row.id; if(table==='produtos' && row.foto) row.imagem_url=row.foto; const {data,error}=await sb.from(table).update(row).eq(DB_ID_COLUMN,path).select(DB_ID_COLUMN); if(error) throw dbError(`Não foi possível atualizar ${table}: ${error.message}`,error.code); if(!data?.length) throw dbError(`Registro não encontrado em ${table}.`,'not-found'); },
-    async delete(){ const {error}=await sb.from(table).delete().eq(DB_ID_COLUMN,tablePath(table,id)); if(error) throw dbError(`Não foi possível excluir de ${table}: ${error.message}`,error.code); }
-  }; return ref;
-}
-function makeCollectionRef(table){
-  const c={
-    doc(id){ if(!id) id=(crypto.randomUUID?crypto.randomUUID():`${Date.now()}_${Math.random().toString(36).slice(2)}`); return makeDocRef(table,String(id)); },
-    async add(data){ const r=c.doc(); await r.set(data); return r; },
-    orderBy(field,direction='asc'){ return {get:()=>c.get(field,direction)}; },
-    async get(field,direction){
-      const {data,error}=await sb.from(table).select('*').like(DB_ID_COLUMN,table==='users'?`/users/%`:`/users/${USER.uid}/${table}/%`);
-      if(error){
-        if(table==='compras' && /does not exist|schema cache|Could not find the table/i.test(error.message)){
-          console.warn('A tabela compras ainda não existe no Supabase. A tela abrirá sem histórico de compras até ela ser criada.');
-          return {docs:[]};
-        }
-        throw dbError(`Não foi possível carregar ${table}: ${error.message}`,error.code);
-      }
-      let rows=(data||[]).map(r=>rowToData(r,table)); if(field) rows.sort((a,b)=>String(a[field]||'').localeCompare(String(b[field]||''))*(direction==='desc'?-1:1)); return {docs:rows.map(r=>({id:r.id,data:()=>r,exists:true}))};
-    }
-  }; return c;
-}
-const db={
-  collection(name){
-    return {doc(id){ const root=makeDocRef(name,id); if(name==='users') root.collection=(child)=>makeCollectionRef(child); return root; }};
-  },
-  async runTransaction(callback){
-    // Supabase REST não oferece transações multi-tabela pelo cliente; enfileiramos as alterações.
-    const ops=[]; const tx={
-      async get(ref){ return await ref.get(); },
-      update(ref,data){ ops.push(()=>ref.update(data)); },
-      set(ref,data){ ops.push(()=>ref.set(data,{merge:true})); },
-      delete(ref){ ops.push(()=>ref.delete()); }
-    };
-    const result=await callback(tx); for(const op of ops) await op(); return result;
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+// Supabase é usado SOMENTE para armazenar as fotos; dados e autenticação continuam no Firebase.
+const ZM_SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
+const ZM_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
+const zmSupabaseStorage = window.supabase.createClient(ZM_SUPABASE_URL, ZM_SUPABASE_PUBLISHABLE_KEY, {
+  // Envia o token do Firebase ao Supabase. Requer habilitar Firebase em Supabase > Authentication > Third-Party Auth.
+  accessToken: async () => {
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) throw new Error('Você precisa estar logada para enviar fotos.');
+    return await currentUser.getIdToken();
   }
-};
+});
+
+const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
 let USER = null, PAGE = 'dashboard';
 let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[], reinvestimentos:[], avisos:[] };
 
-const col = n => makeCollectionRef(n);
+const col = n => db.collection('users').doc(USER.uid).collection(n);
 const money = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 // Corrigido: usa a data local (não UTC), evitando "amanhã" após as 21h
 function today(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
@@ -366,7 +319,7 @@ function mapErr(code){
     'auth/invalid-credential':'E-mail ou senha incorretos.',
     'auth/too-many-requests':'Muitas tentativas. Tente mais tarde.',
     'auth/network-request-failed':'Sem conexão. Verifique a internet.',
-    'permission-denied':'Permissão negada no banco. Confira as políticas de acesso do Supabase.'
+    'permission-denied':'Permissão negada no Firestore. Ajuste as regras de segurança.'
   })[code] || 'Não foi possível concluir. Tente novamente.';
 }
 
@@ -410,7 +363,8 @@ function logoutUI(){ USER=null; DATA={produtos:[],clientes:[],vendas:[],compras:
 async function loadAll(){
   const res=await Promise.all(NAMES.map(async n=>{
     let snap;
-    snap=await col(n).orderBy('createdAt','desc').get();
+    try{ snap=await col(n).orderBy('createdAt','desc').get(); }
+    catch(ex){ if(ex.code==='permission-denied') throw ex; snap=await col(n).get(); }
     return [n, snap.docs.map(d=>({id:d.id,...d.data()}))];
   }));
   DATA=Object.fromEntries(res);
@@ -441,8 +395,8 @@ function openModal(title, body, onSave, opts={}){
       if(terminou) return;
       btn.disabled=false;
       btn.textContent=opts.saveLabel||'Salvar';
-      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Supabase.');
-      showNotice('O salvamento está demorando. Verifique a conexão com o Supabase.','error');
+      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Firebase.');
+      showNotice('O salvamento está demorando. Verifique a conexão com o Firebase.','error');
     },12000);
     try{
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
@@ -490,8 +444,7 @@ const nomeProd=o=>{ const it=itensVenda(o); return it.length>1?it.map(x=>x.produ
 const custoVenda=v=>itensVenda(v).reduce((s,it)=>s+Number(it.custo??byId('produtos',it.produtoId)?.custo??0)*Number(it.qtd||0),0);
 
 const parcelasDe=v=>v.parcelas||[];
-// O saldo a receber é o total da venda menos o que já entrou. Isso também contempla
-// vendas antigas/à vista com recebimento parcial, sem depender apenas de parcelas.
+// Saldo pendente: total da venda menos pagamentos já recebidos.
 const aReceber=v=>Math.max(0,round2(Number(v.valor||0)-recebidoVenda(v)));
 function addDays(s,n){ const d=new Date(s+'T12:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
 function addMonths(s,n){ const [y,m,d]=s.split('-').map(Number); const t=new Date(y,m-1+n,1,12); t.setDate(Math.min(d,new Date(y,m+n,0).getDate())); return t.toISOString().slice(0,10); }
@@ -543,7 +496,7 @@ function renderSalesChart(){ const now=new Date(today()+'T12:00:00'); const arr=
 function exportarBackup(){ const data={versao:2,exportadoEm:new Date().toISOString(),colecoes:{produtos:DATA.produtos,clientes:DATA.clientes,vendas:DATA.vendas,compras:DATA.compras,gastos:DATA.gastos,reinvestimentos:DATA.reinvestimentos,avisos:DATA.avisos}}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`zm-pratas-backup-${today()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast('Backup baixado'); }
 function importarBackup(){ const input=document.createElement('input'); input.type='file'; input.accept='.json,application/json'; input.onchange=async()=>{ const f=input.files?.[0]; if(!f)return; try{ const data=JSON.parse(await f.text()); const c=data.colecoes||data; const names=NAMES.filter(n=>Array.isArray(c[n])); if(!names.length)throw Error('Arquivo sem dados reconhecidos.'); openModal('Restaurar backup',`<p class="modal-msg">Serão importados <strong>${names.map(n=>`${n}: ${c[n].length}`).join(' · ')}</strong>.</p><p class="modal-msg" style="margin-top:.5rem">Registros existentes não serão apagados; os registros do backup serão adicionados com os mesmos IDs quando possível.</p>`,async()=>{ for(const n of names){ for(const item of c[n]){ if(!item.id)continue; const copy={...item}; delete copy.id; await col(n).doc(item.id).set(copy,{merge:true}); } } await loadAll(); go(PAGE); return true; },{okMsg:'Backup restaurado'}); }catch(e){showNotice('Não foi possível ler o backup.','error');} }; input.click(); }
 
-/* ---------- Simulador de lucro (não grava nem altera dados) ---------- */
+/* ---------- Produtos ---------- */
 function renderSimulador(){
   if(!DATA.produtos.length){
     return `<div class="card"><div class="card-header"><h3>Simulador de lucro</h3></div><p>Cadastre um produto em <strong>Produtos</strong> para começar. O simulador usará automaticamente o custo já registrado.</p></div>`;
@@ -578,7 +531,6 @@ function calcSimulador(){
   set('sim-nota',lucro<0?'Atenção: neste preço, o valor recebido após a taxa fica abaixo do custo estimado.':'Simulação apenas: nada será salvo no financeiro, nas vendas ou no estoque.');
 }
 
-/* ---------- Produtos ---------- */
 function renderProdutos(){
   return `<div class="toolbar"><div><div style="font-size:.75rem;color:var(--muted);margin-bottom:.25rem">Catálogo</div><strong style="font-size:1.05rem">${DATA.produtos.length} produto(s)</strong></div><div style="display:flex;gap:.55rem;flex-wrap:wrap;align-items:center"><input class="search" placeholder="🔎 Buscar nome, SKU ou categoria..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div></div>
   <div class="product-grid" id="prod-grid">${DATA.produtos.map(p=>`<div class="product-card" data-q="${esc((p.nome+' '+(p.sku||'')+' '+(p.cat||'')).toLowerCase())}">
@@ -588,15 +540,41 @@ function renderProdutos(){
 }
 async function uploadFotoProduto(file,produtoId){
   if(!file) return null;
-  if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
+  if(!file.type || !file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
   if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
-  const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg');
+  if(!window.supabase || !zmSupabaseStorage) throw new Error('A conexão do armazenamento de fotos não carregou.');
+  const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg').replace('svg+xml','svg');
   const path=`${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
-  const {error}=await sb.storage.from(SUPABASE_BUCKET).upload(path,file,{contentType:file.type,upsert:true});
-  if(error) throw dbError(`Erro no Supabase Storage: ${error.message}`,error.statusCode);
-  const {data}=sb.storage.from(SUPABASE_BUCKET).getPublicUrl(path);
+  const {error}=await zmSupabaseStorage.storage.from('catalogo-produtos').upload(path,file,{
+    contentType:file.type,
+    upsert:true,
+    cacheControl:'3600'
+  });
+  if(error) throw error;
+  const {data}=zmSupabaseStorage.storage.from('catalogo-produtos').getPublicUrl(path);
+  if(!data?.publicUrl) throw new Error('Não foi possível obter o endereço público da foto.');
   return {url:data.publicUrl,path};
 }
+async function sincronizarCatalogoPublico(produtoId, produto){
+  if(!USER?.uid) throw new Error('Usuário não autenticado.');
+  const ref=db.collection('catalogo_publico').doc(`${USER.uid}_${produtoId}`);
+  if(produto.publicarCatalogo !== true){
+    const existente=await ref.get();
+    if(existente.exists) await ref.delete();
+    return;
+  }
+  await ref.set({
+    ownerUid: USER.uid,
+    produtoId,
+    nome: String(produto.nome||''),
+    sku: String(produto.sku||''),
+    cat: String(produto.cat||'Geral'),
+    preco: Number(produto.preco||0),
+    imagem_url: String(produto.foto||''),
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
 function modalProduto(id){
   const p=byId('produtos',id)||{};
   window.__produtoFotoFile=null; window.__removerFoto=false;
@@ -611,22 +589,28 @@ function modalProduto(id){
     <div class="row-2"><div class="field"><label>SKU / Código</label><input id="f-sku" value="${esc(p.sku||'')}" placeholder="Ex.: AN001"/></div><div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div></div>
     <div class="row-2"><div class="field"><label>Preço</label><input id="f-preco" type="number" step="0.01" min="0" value="${p.preco??''}"/></div>
     <div class="field"><label>Custo</label><input id="f-custo" type="number" step="0.01" min="0" value="${p.custo??''}"/></div></div>
-    <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>`,async()=>{
+    <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>
+    <label style="display:flex;align-items:flex-start;gap:.65rem;padding:.85rem;border:1px solid var(--border);border-radius:10px;margin-top:.35rem;cursor:pointer">
+      <input id="f-publicar-catalogo" type="checkbox" ${p.publicarCatalogo===true?'checked':''} style="margin-top:.2rem;width:17px;height:17px;flex-shrink:0"/>
+      <span><strong>Exibir no catálogo público</strong><span class="meta" style="display:block;margin-top:.2rem">Quando marcado, nome, categoria, preço, código e foto ficam visíveis no site público.</span></span>
+    </label>`,async()=>{
     const nome=val('f-nome'), precoTexto=val('f-preco'), preco=Number(precoTexto);
     if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
       let produtoId=p.id || col('produtos').doc().id;
-      // Salva o registro no Supabase antes de enviar a foto, para não perder os dados do produto.
+      // Primeiro salva os dados do produto no Firestore.
+      // Assim, se houver algum problema no Storage, o produto não é perdido.
       let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
-      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
+      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,publicarCatalogo:document.getElementById('f-publicar-catalogo').checked,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
-      if(!sb) throw Object.assign(new Error('Supabase não foi inicializado.'),{userMsg:'O Supabase não foi inicializado. Recarregue a página.'});
-      const produtoRef=col('produtos').doc(produtoId);
+      if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Firebase Firestore não foi inicializado. Recarregue a página.'});
+      // O produto é salvo PRIMEIRO no Firestore. A foto nunca bloqueia o cadastro.
+      const produtoRef=db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
       await Promise.race([
         produtoRef.set(payload,{merge:true}),
-        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Supabase não respondeu em 15 segundos.'),{userMsg:'O Supabase não respondeu em 15 segundos. Confira a conexão e as permissões do banco.'})),15000))
+        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Firestore não respondeu em 15 segundos.'),{userMsg:'O Firestore não respondeu em 15 segundos. Verifique a internet e as regras do Firestore.'})),15000))
       ]);
 
       // Depois envia a nova foto, se houver.
@@ -634,10 +618,25 @@ function modalProduto(id){
         try{
           const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
           await produtoRef.set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
+          foto=up.url; fotoPath=up.path; payload.foto=up.url; payload.fotoPath=up.path;
         }catch(photoErr){
-          console.error('Erro ao enviar foto:',photoErr);
-          toast('Produto salvo, mas a foto não foi enviada. Confira as políticas do bucket no Supabase.');
+          console.error('Erro ao enviar foto ao Supabase Storage:',photoErr);
+          const raw=String(photoErr?.message||photoErr||'Erro desconhecido');
+          let friendly='A foto não foi enviada ao Supabase. O produto foi salvo.';
+          if(/row-level security|violates row-level|permission denied|not authorized|unauthorized|JWT|token/i.test(raw)) friendly='O Supabase recusou a autorização. Ative a integração Firebase em Supabase → Authentication → Third-Party Auth e mantenha as políticas restritas ao bucket catalogo-produtos.';
+          else if(/bucket not found/i.test(raw)) friendly='O bucket catalogo-produtos não foi encontrado no Supabase.';
+          else if(/payload too large|maximum.*size|exceeded the maximum/i.test(raw)) friendly='A imagem excede o limite de tamanho permitido pelo Supabase.';
+          toast(friendly);
+          showNotice(friendly+' Detalhe técnico: '+raw,'error');
         }
+      }
+      // Sincroniza apenas os campos destinados ao catálogo público.
+      // Custo, estoque, fotoPath e demais dados internos nunca são publicados.
+      try{
+        await sincronizarCatalogoPublico(produtoId, payload);
+      }catch(publicErr){
+        console.error('Erro ao sincronizar catálogo público:', publicErr);
+        showNotice('Produto salvo, mas não foi possível atualizar o catálogo público. Confira as regras do Firestore.','error');
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
       return true;
@@ -660,7 +659,15 @@ function removerFotoProduto(){ window.__removerFoto=true; window.__produtoFotoFi
 function delProduto(id){
   const usado=DATA.vendas.some(v=>v.produtoId===id)||DATA.compras.some(c=>c.produtoId===id);
   if(usado){ showNotice('Este produto tem vendas ou compras registradas e não pode ser excluído. Zere o estoque para tirá-lo de uso.','info'); return; }
-  delDoc('produtos',id);
+  openModal('Excluir produto','<p class="modal-msg">Tem certeza que deseja excluir este produto? Se estiver publicado, ele também será removido do catálogo público.</p>',async()=>{
+    const publicRef=db.collection('catalogo_publico').doc(`${USER.uid}_${id}`);
+    const publicDoc=await publicRef.get();
+    if(publicDoc.exists) await publicRef.delete();
+    await col('produtos').doc(id).delete();
+    await loadAll();
+    go('produtos');
+    return true;
+  },{saveLabel:'Excluir',danger:true,okMsg:'Produto excluído'});
 }
 
 /* ---------- Vendas ---------- */
@@ -991,7 +998,7 @@ function renderReinvest(){
     ${k('🔒 Reserva de reinvestimento restante',saldoReservaReinvestimento(),'Já separada; não está livre para usar novamente')}
     ${k('✅ Disponível para novas separações',Math.max(0,livre),'Valor máximo que pode ser retirado ou separado')}
   </div>
-  <div class="card" style="border:2px solid var(--primary);padding:1rem;margin-bottom:1rem">
+  <div class="card" style="border:2px solid var(--blue-accent);padding:1rem;margin-bottom:1rem">
     <h3 style="margin-top:0">Importante sobre o reinvestimento</h3>
     <p style="margin-bottom:.4rem">O sistema <strong>não considera parcelas pendentes como dinheiro disponível</strong>. Você só pode registrar retirada e/ou reinvestimento até o limite de <strong>${money(Math.max(0,livre))}</strong>.</p>
     <p style="margin-bottom:0">Se a cliente ainda não pagou uma parcela, esse valor aparece em “Ainda a receber” e fica fora do caixa para investir.</p>
