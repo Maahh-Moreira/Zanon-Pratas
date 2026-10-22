@@ -425,6 +425,13 @@ let DEPOIMENTOS = [];
 let unsubscribeDepoimentos = null;
 const DEPOIMENTOS_TABLE = 'depoimentos';
 
+// Escapa texto antes de inseri-lo em HTML; necessário no formulário e nas mensagens de erro.
+function escHtml(value){
+  return String(value ?? '').replace(/[&<>\"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+
 function normalizarDepoimento(row){
   return {
     id: row.id,
@@ -449,7 +456,7 @@ function observarDepoimentos(){
 }
 async function carregarDepoimentos(){
   try{
-    const {data,error}=await supabaseDepoimentos.from(DEPOIMENTOS_TABLE).select('id, cliente_nome, mensagem, foto_url, publicado, criado_em');
+    const {data,error}=await supabaseDepoimentos.from(DEPOIMENTOS_TABLE).select('id, cliente_nome, mensagem, foto_url, publicado, criado_em').order('criado_em',{ascending:false});
     if(error) throw error;
     // Usa os nomes reais das colunas da tabela depoimentos, incluindo criado_em.
     DEPOIMENTOS=(data||[]).map(normalizarDepoimento).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
