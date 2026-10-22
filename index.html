@@ -245,6 +245,7 @@ td{padding:.85rem 1rem}
       <button class="nav-item" data-page="vendas" onclick="go('vendas')"><span class="ico">▲</span><span>Vendas</span></button>
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
       <button class="nav-item" data-page="mural" onclick="go('mural')"><span class="ico">▤</span><span>Mural de avisos</span></button>
+      <button class="nav-item" data-page="depoimentos" onclick="go('depoimentos')"><span class="ico">♡</span><span>Depoimentos</span></button>
       <div class="nav-group-title">Financeiro</div>
       <button class="nav-item" data-page="compras" onclick="go('compras')"><span class="ico">◇</span><span>Compras</span></button>
       <button class="nav-item" data-page="receber" onclick="go('receber')"><span class="ico">$</span><span>A Receber</span></button>
@@ -253,7 +254,7 @@ td{padding:.85rem 1rem}
     </nav>
     <div class="sidebar-footer">
       <div class="user-line" id="user-line">—</div>
-      <div class="sync-badge">Firebase · online</div>
+      <div class="sync-badge">Supabase · dados online</div>
       <button onclick="confirmLogout()">Sair</button>
     </div>
   </aside>
@@ -277,28 +278,55 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-
-// Supabase é usado SOMENTE para armazenar as fotos; dados e autenticação continuam no Firebase.
-const ZM_SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
-const ZM_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
-const zmSupabaseStorage = window.supabase.createClient(ZM_SUPABASE_URL, ZM_SUPABASE_PUBLISHABLE_KEY, {
-  // Envia o token do Firebase ao Supabase. Requer habilitar Firebase em Supabase > Authentication > Third-Party Auth.
+// Firebase é SOMENTE autenticação. Todos os dados e fotos são persistidos no Supabase.
+const SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   accessToken: async () => {
     const currentUser = firebase.auth().currentUser;
-    if (!currentUser) throw new Error('Você precisa estar logada para enviar fotos.');
-    return await currentUser.getIdToken();
+    return currentUser ? await currentUser.getIdToken() : null;
   }
 });
-
-const TS = () => firebase.firestore.FieldValue.serverTimestamp();
+const zmSupabaseStorage = db;
+const TS = () => new Date().toISOString();
+const LEGACY_DATA_UID = 'HNNimEpUXpZaJG7aRNYwE1JcL5p1';
+const TABLE_ID = 'Document ID';
+function legacyPath(table,id=''){ return `/users/${LEGACY_DATA_UID}/${table}/${id}`; }
+function localId(table,path){ const prefix=`/users/${LEGACY_DATA_UID}/${table}/`; return String(path||'').startsWith(prefix)?String(path).slice(prefix.length):String(path||''); }
+function dbError(error){ if(!error)return error; return Object.assign(new Error(error.message||'Erro no Supabase'),{code:error.code==='42501'?'permission-denied':error.code||'unknown'}); }
+function queryBuilder(table){
+  let sortCol=null,sortDesc=false;
+  const q={orderBy(col,dir='asc'){sortCol=col;sortDesc=dir==='desc';return q;},async get(){
+    let request=db.from(table).select('*').like(TABLE_ID,`/users/${LEGACY_DATA_UID}/${table}/%`);
+    if(sortCol)request=request.order(sortCol,{ascending:!sortDesc,nullsFirst:false});
+    const {data,error}=await request;
+    if(error){
+      // A tabela compras não existia na migração inicial; não impede o painel de abrir.
+      if(table==='compras' && (error.code==='42P01'||error.code==='PGRST205')) return {docs:[]};
+      throw dbError(error);
+    }
+    return {docs:(data||[]).map(row=>({id:localId(table,row[TABLE_ID]),data:()=>{const copy={...row};delete copy[TABLE_ID];return copy;}}))};
+  },doc(id){return docRef(table,id);},async add(value){const id=crypto.randomUUID();await docRef(table,id).set(value);return {id};}};
+  return q;
+}
+function docRef(table,id){ const path=String(id||'').startsWith('/users/')?String(id):legacyPath(table,id); return {
+  async set(value,options={}){const row={...value,[TABLE_ID]:path};const {error}=await db.from(table).upsert(row,{onConflict:TABLE_ID});if(error)throw dbError(error);},
+  async update(value){const {error}=await db.from(table).update(value).eq(TABLE_ID,path);if(error)throw dbError(error);},
+  async delete(){const {error}=await db.from(table).delete().eq(TABLE_ID,path);if(error)throw dbError(error);},
+  get:async()=>{const {data,error}=await db.from(table).select('*').eq(TABLE_ID,path).maybeSingle();if(error)throw dbError(error);return {exists:!!data,data:()=>{const copy={...(data||{})};delete copy[TABLE_ID];return copy;}}}
+}; }
+const dbAdapter={collection(name){return {doc(id){if(name==='users')return {collection(sub){return queryBuilder(sub);},async set(){}};return docRef(name,id);},...queryBuilder(name)};},async runTransaction(fn){
+  // Operações sequenciais via Supabase; transações reais multi-operação devem ser RPCs SQL.
+  const operations=[];const tx={async get(ref){return ref.get();},update(ref,data){operations.push(()=>ref.update(data));},set(ref,data){operations.push(()=>ref.set(data));},delete(ref){operations.push(()=>ref.delete());}};
+  await fn(tx);for(const op of operations)await op();
+}};
+const dataDb=dbAdapter;
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
 let USER = null, PAGE = 'dashboard';
 let DATA = { produtos:[], clientes:[], vendas:[], compras:[], gastos:[], reinvestimentos:[], avisos:[] };
 
-const col = n => db.collection('users').doc(USER.uid).collection(n);
+const col = n => dataDb.collection('users').doc(USER.uid).collection(n);
 const money = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 // Corrigido: usa a data local (não UTC), evitando "amanhã" após as 21h
 function today(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
@@ -319,7 +347,7 @@ function mapErr(code){
     'auth/invalid-credential':'E-mail ou senha incorretos.',
     'auth/too-many-requests':'Muitas tentativas. Tente mais tarde.',
     'auth/network-request-failed':'Sem conexão. Verifique a internet.',
-    'permission-denied':'Permissão negada no Firestore. Ajuste as regras de segurança.'
+    'permission-denied':'Permissão negada no Supabase. Confira as políticas de segurança (RLS).'
   })[code] || 'Não foi possível concluir. Tente novamente.';
 }
 
@@ -338,7 +366,7 @@ async function doRegister(e){
   try{
     const cred=await auth.createUserWithEmailAndPassword(email,pass);
     await cred.user.updateProfile({displayName:name});
-    await db.collection('users').doc(cred.user.uid).set({name,email,createdAt:TS()},{merge:true});
+    // O perfil de autenticação fica no Firebase Auth; não gravamos dados no Firestore.
   }catch(ex){ err.textContent=mapErr(ex.code); err.classList.add('show'); }
   btn.disabled=false; return false;
 }
@@ -395,8 +423,8 @@ function openModal(title, body, onSave, opts={}){
       if(terminou) return;
       btn.disabled=false;
       btn.textContent=opts.saveLabel||'Salvar';
-      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Firebase.');
-      showNotice('O salvamento está demorando. Verifique a conexão com o Firebase.','error');
+      modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Supabase.');
+      showNotice('O salvamento está demorando. Verifique a conexão com o Supabase.','error');
     },12000);
     try{
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
@@ -424,13 +452,69 @@ function openModal(title, body, onSave, opts={}){
   };
 }
 
+
+/* ---------- Depoimentos: gravação e leitura exclusivamente no Supabase ---------- */
+let DEPOIMENTOS = [];
+const DEPOIMENTOS_TABLE = 'depoimentos';
+function renderDepoimentos(){
+  const sorted=[...DEPOIMENTOS].sort((a,b)=>String(b.criado_em||'').localeCompare(String(a.criado_em||'')));
+  return `<div class="notice-intro"><div><div class="notice-eyebrow">ZM PRATAS · CLIENTES</div><h2>Depoimentos das clientes</h2><p>Gerencie aqui os depoimentos exibidos no catálogo público.</p></div><button class="btn btn-primary" onclick="modalDepoimento()">+ Novo depoimento</button></div>
+  <div class="card"><div class="card-header"><div><h3>Depoimentos cadastrados</h3><p class="meta">Publique somente mensagens e fotos autorizadas pelas clientes.</p></div><span class="pill">${sorted.filter(d=>d.publicado!==false).length} publicado(s)</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Mensagem</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+  ${sorted.map(d=>`<tr><td><strong>${esc(d.cliente_nome||'Cliente')}</strong>${d.foto_url?'<br><span class="meta">Com foto</span>':''}</td><td style="max-width:420px;white-space:normal">${esc(d.mensagem||'')}</td><td>${d.publicado===false?'<span class="pill">Oculto</span>':'<span class="pill pill-green">Publicado</span>'}</td><td><div class="actions"><button class="btn btn-outline btn-sm" onclick="modalDepoimento('${esc(d.id)}')">Editar</button><button class="btn btn-outline btn-sm" onclick="alternarDepoimento('${esc(d.id)}',${d.publicado===false})">${d.publicado===false?'Publicar':'Ocultar'}</button><button class="btn btn-danger btn-sm" onclick="excluirDepoimento('${esc(d.id)}')">Excluir</button></div></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Nenhum depoimento cadastrado ainda.</td></tr>'}
+  </tbody></table></div></div>`;
+}
+async function carregarDepoimentos(){
+  try{
+    const {data,error}=await db.from(DEPOIMENTOS_TABLE).select('*').order('criado_em',{ascending:false});
+    if(error) throw error;
+    DEPOIMENTOS=(data||[]).map(d=>({...d,id:String(d.id)}));
+    if(PAGE==='depoimentos') document.getElementById('content').innerHTML=renderDepoimentos();
+  }catch(err){
+    console.error('Erro ao carregar depoimentos do Supabase:',err);
+    if(PAGE==='depoimentos') document.getElementById('content').innerHTML=`<div class="card"><h3>Não foi possível carregar os depoimentos</h3><p>${esc(err.message||'Verifique a coluna criado_em e as políticas RLS da tabela depoimentos no Supabase.')}</p><button class="btn btn-outline" onclick="carregarDepoimentos()">Tentar novamente</button></div>`;
+  }
+}
+function modalDepoimento(id){
+  const d=DEPOIMENTOS.find(x=>x.id===String(id))||{};
+  openModal(id?'Editar depoimento':'Novo depoimento',`
+    <div class="field"><label>Nome da cliente</label><input id="dep-nome" maxlength="120" value="${esc(d.cliente_nome||'')}" placeholder="Ex.: Maria S."/></div>
+    <div class="field"><label>Mensagem</label><textarea id="dep-mensagem" rows="4" maxlength="1000" placeholder="Depoimento autorizado pela cliente">${esc(d.mensagem||'')}</textarea></div>
+    <div class="field"><label>URL da foto (opcional)</label><input id="dep-foto-url" type="url" value="${esc(d.foto_url||'')}" placeholder="https://..."/></div>
+    <div class="field"><label style="display:flex;gap:8px;align-items:center"><input id="dep-publicado" type="checkbox" style="width:auto" ${d.publicado!==false?'checked':''}> Exibir no catálogo público</label></div>`,async()=>{
+      const cliente_nome=document.getElementById('dep-nome').value.trim();
+      const mensagem=document.getElementById('dep-mensagem').value.trim();
+      const foto_url=document.getElementById('dep-foto-url').value.trim();
+      const publicado=document.getElementById('dep-publicado').checked;
+      if(!cliente_nome||!mensagem){modalError('Preencha o nome e a mensagem.');return false;}
+      if(foto_url&&!/^https?:\/\//i.test(foto_url)){modalError('Informe uma URL válida para a foto.');return false;}
+      const payload={cliente_nome,mensagem,foto_url,publicado};
+      let result;
+      if(id) result=await db.from(DEPOIMENTOS_TABLE).update(payload).eq('id',id);
+      else result=await db.from(DEPOIMENTOS_TABLE).insert(payload);
+      if(result.error) throw result.error;
+      await carregarDepoimentos();
+      return true;
+    },{okMsg:'Depoimento salvo',noReload:true});
+}
+async function alternarDepoimento(id,publicado){
+  try{const {error}=await db.from(DEPOIMENTOS_TABLE).update({publicado}).eq('id',id);if(error)throw error;await carregarDepoimentos();toast(publicado?'Depoimento publicado':'Depoimento ocultado');}
+  catch(e){showNotice(e.message||'Não foi possível atualizar o depoimento. Confira a coluna publicado e as permissões RLS.','error');}
+}
+function excluirDepoimento(id){
+  openModal('Excluir depoimento','<p class="modal-msg">Tem certeza de que deseja excluir este depoimento?</p>',async()=>{
+    const {error}=await db.from(DEPOIMENTOS_TABLE).delete().eq('id',id);if(error)throw error;await carregarDepoimentos();return true;
+  },{saveLabel:'Excluir',danger:true,okMsg:'Depoimento excluído',noReload:true});
+}
+
 function go(page){
   PAGE=page;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',mural:'Mural de avisos',compras:'Compras / Estoque',gastos:'Gastos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
+  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',mural:'Mural de avisos',depoimentos:'Depoimentos',compras:'Compras / Estoque',gastos:'Gastos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
   document.getElementById('page-title').textContent=titles[page];
-  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,mural:renderMural,compras:renderCompras,gastos:renderGastos,reinvest:renderReinvest,receber:renderReceber};
+  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,mural:renderMural,depoimentos:renderDepoimentos,compras:renderCompras,gastos:renderGastos,reinvest:renderReinvest,receber:renderReceber};
   document.getElementById('content').innerHTML=r[page]();
+  if(page==='depoimentos') carregarDepoimentos();
 }
 
 const total=(list,key='valor')=>(list||[]).reduce((s,x)=>s+Number(x[key]||0),0);
@@ -520,23 +604,9 @@ async function uploadFotoProduto(file,produtoId){
   return {url:data.publicUrl,path};
 }
 async function sincronizarCatalogoPublico(produtoId, produto){
-  if(!USER?.uid) throw new Error('Usuário não autenticado.');
-  const ref=db.collection('catalogo_publico').doc(`${USER.uid}_${produtoId}`);
-  if(produto.publicarCatalogo !== true){
-    const existente=await ref.get();
-    if(existente.exists) await ref.delete();
-    return;
-  }
-  await ref.set({
-    ownerUid: USER.uid,
-    produtoId,
-    nome: String(produto.nome||''),
-    sku: String(produto.sku||''),
-    cat: String(produto.cat||'Geral'),
-    preco: Number(produto.preco||0),
-    imagem_url: String(produto.foto||''),
-    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  // A publicação é controlada pelo campo publicarCatalogo no próprio registro Supabase.
+  // Nenhuma gravação no Firestore é feita aqui.
+  return true;
 }
 
 function modalProduto(id){
@@ -562,20 +632,15 @@ function modalProduto(id){
     if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
       let produtoId=p.id || col('produtos').doc().id;
-      // Primeiro salva os dados do produto no Firestore.
-      // Assim, se houver algum problema no Storage, o produto não é perdido.
+      // Salva os dados do produto diretamente no Supabase.
       let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
       const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,publicarCatalogo:document.getElementById('f-publicar-catalogo').checked,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
-      if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Firebase Firestore não foi inicializado. Recarregue a página.'});
-      // O produto é salvo PRIMEIRO no Firestore. A foto nunca bloqueia o cadastro.
-      const produtoRef=db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
-      await Promise.race([
-        produtoRef.set(payload,{merge:true}),
-        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('O Firestore não respondeu em 15 segundos.'),{userMsg:'O Firestore não respondeu em 15 segundos. Verifique a internet e as regras do Firestore.'})),15000))
-      ]);
+      // O produto é salvo no Supabase antes do envio da foto.
+      const produtoRef=dataDb.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
+      await produtoRef.set(payload,{merge:true});
 
       // Depois envia a nova foto, se houver.
       if(window.__produtoFotoFile){
@@ -600,7 +665,7 @@ function modalProduto(id){
         await sincronizarCatalogoPublico(produtoId, payload);
       }catch(publicErr){
         console.error('Erro ao sincronizar catálogo público:', publicErr);
-        showNotice('Produto salvo, mas não foi possível atualizar o catálogo público. Confira as regras do Firestore.','error');
+        showNotice('Produto salvo no Supabase, mas houve falha ao atualizar a publicação do catálogo.','error');
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
       return true;
@@ -624,9 +689,6 @@ function delProduto(id){
   const usado=DATA.vendas.some(v=>v.produtoId===id)||DATA.compras.some(c=>c.produtoId===id);
   if(usado){ showNotice('Este produto tem vendas ou compras registradas e não pode ser excluído. Zere o estoque para tirá-lo de uso.','info'); return; }
   openModal('Excluir produto','<p class="modal-msg">Tem certeza que deseja excluir este produto? Se estiver publicado, ele também será removido do catálogo público.</p>',async()=>{
-    const publicRef=db.collection('catalogo_publico').doc(`${USER.uid}_${id}`);
-    const publicDoc=await publicRef.get();
-    if(publicDoc.exists) await publicRef.delete();
     await col('produtos').doc(id).delete();
     await loadAll();
     go('produtos');
@@ -660,7 +722,7 @@ function modalVenda(){
     const n=+val('f-pag')||1; let parcelas=null;
     if(n>1){ const vp=round2(valor/n), v2=val('f-venc2')||addMonths(data,1); parcelas=Array.from({length:n},(_,i)=>({valor:i===n-1?round2(valor-vp*(n-1)):vp,venc:i===0?data:addMonths(v2,i-1),pago:i===0&&val('f-pago1')==='1'})); }
     const ids=items.map(x=>x.produtoId), pref=ids.map(id=>col('produtos').doc(id));
-    await db.runTransaction(async t=>{
+    await dataDb.runTransaction(async t=>{
       const snaps=[]; for(const ref of pref) snaps.push(await t.get(ref));
       const saved=[]; for(let i=0;i<items.length;i++){ const snap=snaps[i]; if(!snap.exists) throw Object.assign(new Error(),{userMsg:'Produto não encontrado.'}); const pd=snap.data(), item=items[i]; if(Number(pd.estoque||0)<item.qtd) throw Object.assign(new Error(),{userMsg:`Estoque insuficiente para ${pd.nome}.`}); saved.push({...item,produtoNome:pd.nome,precoUnitario:item.preco,custo:Number(pd.custo||0)}); t.update(pref[i],{estoque:Number(pd.estoque||0)-item.qtd}); }
       const subtotal=saved.reduce((s,x)=>s+x.preco*x.qtd,0); const desconto=val('f-dtipo').startsWith('-')?round2(subtotal-valor):0, acrescimo=val('f-dtipo').startsWith('+')?round2(valor-subtotal):0;
@@ -686,7 +748,7 @@ function modalParcelas(id){
 }
 function imprimirVenda(id){ const v=byId('vendas',id); if(!v)return; const c=byId('clientes',v.clienteId); const items=itensVenda(v); const root=document.getElementById('toast-root'); const old=document.getElementById('receipt-print'); if(old)old.remove(); const el=document.createElement('div'); el.id='receipt-print'; el.className='receipt-print'; el.innerHTML=`<h1>ZM Pratas</h1><div class="center">Comprovante de venda</div><div class="center">${fmtDate(v.data)} · ${esc(nomeCli(v))}</div><table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>${items.map(i=>`<tr><td>${esc(i.produtoNome||byId('produtos',i.produtoId)?.nome||'Produto')}</td><td>${i.qtd}</td><td>${money(i.preco*i.qtd)}</td></tr>`).join('')}</tbody></table><div class="total">Total: ${money(v.valor)}</div><div>Pagamento: ${esc(v.formaPagamento||'—')}</div><div>Recebido: ${money(v.valorRecebido||recebidoVenda(v))}</div><div>Cliente: ${esc(c?.telefone||'')}</div>`; document.body.appendChild(el); window.print(); setTimeout(()=>el.remove(),800); }
 function delVenda(id){
-  openModal('Excluir venda','<p class="modal-msg">Excluir e devolver todos os produtos ao estoque?</p>',async()=>{ const v=byId('vendas',id); if(!v)return true; await db.runTransaction(async t=>{ for(const it of itensVenda(v)){ const pref=col('produtos').doc(it.produtoId); const snap=await t.get(pref); if(snap.exists)t.update(pref,{estoque:Number(snap.data().estoque||0)+Number(it.qtd||0)}); } t.delete(col('vendas').doc(id)); }); return true; },{saveLabel:'Excluir',danger:true,okMsg:'Venda excluída'});
+  openModal('Excluir venda','<p class="modal-msg">Excluir e devolver todos os produtos ao estoque?</p>',async()=>{ const v=byId('vendas',id); if(!v)return true; await dataDb.runTransaction(async t=>{ for(const it of itensVenda(v)){ const pref=col('produtos').doc(it.produtoId); const snap=await t.get(pref); if(snap.exists)t.update(pref,{estoque:Number(snap.data().estoque||0)+Number(it.qtd||0)}); } t.delete(col('vendas').doc(id)); }); return true; },{saveLabel:'Excluir',danger:true,okMsg:'Venda excluída'});
 }
 
 /* ---------- Clientes ---------- */
@@ -752,7 +814,7 @@ function modalCompra(){
     if(pagoReinvestimento>valor){ modalError('O valor usado da reserva não pode ser maior que a compra.'); return false; }
     if(pagoReinvestimento>saldoReservaReinvestimento()){ modalError(`A reserva de reinvestimento disponível é ${money(saldoReservaReinvestimento())}.`); return false; }
     const pref=col('produtos').doc(produtoId);
-    await db.runTransaction(async t=>{
+    await dataDb.runTransaction(async t=>{
       const snap=await t.get(pref);
       if(!snap.exists) throw Object.assign(new Error(),{userMsg:'Produto não encontrado.'});
       const cur=snap.data(), est=Number(cur.estoque||0), patch={estoque:est+qtd};
@@ -767,7 +829,7 @@ function modalCompra(){
 function delCompra(id){
   openModal('Excluir compra','<p class="modal-msg">Excluir e reverter o estoque? (o custo do produto não é recalculado)</p>',async()=>{
     const c=byId('compras',id); if(!c) return true;
-    await db.runTransaction(async t=>{
+    await dataDb.runTransaction(async t=>{
       let snap=null; const pref=c.produtoId?col('produtos').doc(c.produtoId):null;
       if(pref) snap=await t.get(pref);
       if(snap?.exists) t.update(pref,{estoque:Math.max(0,Number(snap.data().estoque||0)-Number(c.qtd||0))});
