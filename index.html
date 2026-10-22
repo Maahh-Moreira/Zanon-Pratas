@@ -281,12 +281,10 @@ const auth = firebase.auth();
 // Firebase é SOMENTE autenticação. Todos os dados e fotos são persistidos no Supabase.
 const SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  accessToken: async () => {
-    const currentUser = firebase.auth().currentUser;
-    return currentUser ? await currentUser.getIdToken() : null;
-  }
-});
+// Mantém a conexão de dados igual à migração original do Supabase.
+// Firebase Auth autentica o usuário, mas seu token não é enviado ao Supabase,
+// pois os registros legados usam o caminho fixo em "Document ID".
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const zmSupabaseStorage = db;
 const TS = () => new Date().toISOString();
 const LEGACY_DATA_UID = 'HNNimEpUXpZaJG7aRNYwE1JcL5p1';
