@@ -241,11 +241,9 @@ td{padding:.85rem 1rem}
       <button class="nav-item active" data-page="dashboard" onclick="go('dashboard')"><span class="ico">◈</span><span>Dashboard</span></button>
       <div class="nav-group-title">Operação</div>
       <button class="nav-item" data-page="produtos" onclick="go('produtos')"><span class="ico">◆</span><span>Produtos</span></button>
-      <button class="nav-item" data-page="simulador" onclick="go('simulador')"><span class="ico">％</span><span>Simulador</span></button>
       <button class="nav-item" data-page="vendas" onclick="go('vendas')"><span class="ico">▲</span><span>Vendas</span></button>
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
       <button class="nav-item" data-page="mural" onclick="go('mural')"><span class="ico">▤</span><span>Mural de avisos</span></button>
-      <button class="nav-item" data-page="depoimentos" onclick="go('depoimentos')"><span class="ico">♡</span><span>Depoimentos</span></button>
       <div class="nav-group-title">Financeiro</div>
       <button class="nav-item" data-page="compras" onclick="go('compras')"><span class="ico">◇</span><span>Compras</span></button>
       <button class="nav-item" data-page="receber" onclick="go('receber')"><span class="ico">$</span><span>A Receber</span></button>
@@ -280,6 +278,9 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
+
+// Fotos dos produtos são armazenadas no Firebase Storage, usando a autenticação já existente.
+
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
@@ -362,7 +363,7 @@ async function enterApp(){
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-line').textContent=USER.email||USER.displayName||'—';
   document.getElementById('content').innerHTML='<div class="empty">Sincronizando...</div>';
-  try{ await loadAll(); observarDepoimentos(); go('dashboard'); }
+  try{ await loadAll(); go('dashboard'); }
   catch(ex){ showNotice(mapErr(ex.code||''),'error'); document.getElementById('content').innerHTML='<div class="empty">Erro ao carregar dados</div>'; }
 }
 auth.onAuthStateChanged(async u=>{ if(u){ USER=u; await enterApp(); } else logoutUI(); });
@@ -412,76 +413,13 @@ function openModal(title, body, onSave, opts={}){
   };
 }
 
-
-/* ---------- Depoimentos públicos do catálogo ---------- */
-let DEPOIMENTOS = [];
-function renderDepoimentos(){
-  const sorted=[...DEPOIMENTOS].sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-  return `<div class="notice-intro"><div><div class="notice-eyebrow">ZM PRATAS · CLIENTES</div><h2>Depoimentos das clientes 💙</h2><p>Os depoimentos publicados aparecem na página inicial do catálogo, na seção “O que nossas clientes dizem”.</p></div><button class="btn btn-primary" onclick="modalDepoimento()">+ Novo depoimento</button></div>
-  <div class="card"><div class="card-header"><div><h3>Depoimentos cadastrados</h3><p class="meta">Publique apenas mensagens e fotos autorizadas pelas clientes.</p></div><span class="pill">${sorted.filter(d=>d.publicado).length} publicado(s)</span></div>
-  <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Mensagem</th><th>Status</th><th>Ações</th></tr></thead><tbody>
-  ${sorted.map(d=>`<tr><td><strong>${escHtml(d.nome||'Cliente')}</strong>${d.fotoUrl?'<br><span class="meta">Com foto</span>':''}</td><td style="max-width:420px;white-space:normal">${escHtml(d.mensagem||'')}</td><td>${d.publicado?'<span class="pill pill-green">Publicado</span>':'<span class="pill">Oculto</span>'}</td><td><div class="actions"><button class="btn btn-outline btn-sm" onclick="modalDepoimento('${d.id}')">Editar</button><button class="btn btn-outline btn-sm" onclick="alternarDepoimento('${d.id}',${!d.publicado})">${d.publicado?'Ocultar':'Publicar'}</button><button class="btn btn-danger btn-sm" onclick="excluirDepoimento('${d.id}')">Excluir</button></div></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Nenhum depoimento cadastrado ainda.</td></tr>'}
-  </tbody></table></div></div>`;
-}
-function escHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function observarDepoimentos(){
-  db.collection('depoimentos_publicos').onSnapshot(snap=>{
-    DEPOIMENTOS=snap.docs.map(d=>({id:d.id,...d.data()}));
-    if(PAGE==='depoimentos') document.getElementById('content').innerHTML=renderDepoimentos();
-  },err=>{console.error('Erro ao sincronizar depoimentos:',err);});
-}
-function modalDepoimento(id){
-  const d=DEPOIMENTOS.find(x=>x.id===id)||{};
-  const idNovo=id||db.collection('depoimentos_publicos').doc().id;
-  openModal(id?'Editar depoimento':'Novo depoimento',`
-    <div class="field"><label>Nome que será exibido</label><input id="dep-nome" maxlength="80" value="${escHtml(d.nome||'')}" placeholder="Ex.: Maria S."/></div>
-    <div class="field"><label>Mensagem da cliente</label><textarea id="dep-mensagem" rows="4" maxlength="600" placeholder="Digite o depoimento autorizado pela cliente">${escHtml(d.mensagem||'')}</textarea></div>
-    <div class="field"><label>Foto opcional (JPG, PNG ou WebP, até 5 MB)</label><input id="dep-foto" type="file" accept="image/jpeg,image/png,image/webp"/><div id="dep-preview" style="margin-top:10px">${d.fotoUrl?`<img src="${escHtml(d.fotoUrl)}" alt="Foto atual" style="width:76px;height:76px;object-fit:cover;border-radius:50%">`:''}</div><label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="dep-remover-foto" type="checkbox" style="width:auto"> Remover foto atual</label></div>
-    <div class="field"><label style="display:flex;gap:8px;align-items:center"><input id="dep-publicado" type="checkbox" style="width:auto" ${d.publicado?'checked':''}> Exibir no catálogo público</label></div>
-    <p class="meta">Peça autorização antes de publicar o nome, a mensagem ou a foto da cliente.</p>`,async()=>{
-      const nome=document.getElementById('dep-nome').value.trim();
-      const mensagem=document.getElementById('dep-mensagem').value.trim();
-      const file=document.getElementById('dep-foto').files[0];
-      if(!nome||!mensagem){modalError('Preencha o nome e a mensagem.');return false;}
-      if(file && !['image/jpeg','image/png','image/webp'].includes(file.type)){modalError('Use uma imagem JPG, PNG ou WebP.');return false;}
-      if(file && file.size>5*1024*1024){modalError('A imagem deve ter no máximo 5 MB.');return false;}
-      let fotoUrl=d.fotoUrl||'', fotoPath=d.fotoPath||'';
-      if(document.getElementById('dep-remover-foto').checked){fotoUrl='';fotoPath='';}
-      if(file){
-        const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-        const path=`depoimentos/${USER.uid}/${idNovo}/${Date.now()}_${safeName}`;
-        const ref=storage.ref().child(path);
-        await ref.put(file,{contentType:file.type});
-        fotoUrl=await ref.getDownloadURL();fotoPath=path;
-      }
-      const payload={nome,mensagem,fotoUrl,fotoPath,publicado:document.getElementById('dep-publicado').checked,updatedAt:TS()};
-      if(!d.createdAt) payload.createdAt=TS();
-      await db.collection('depoimentos_publicos').doc(idNovo).set(payload,{merge:true});
-      if(document.getElementById('dep-remover-foto').checked && d.fotoPath){try{await storage.ref().child(d.fotoPath).delete();}catch(e){console.warn('Não foi possível remover a foto antiga:',e);}}
-      return true;
-    },{okMsg:'Depoimento salvo',noReload:true});
-}
-async function alternarDepoimento(id,publicado){
-  try{await db.collection('depoimentos_publicos').doc(id).update({publicado,updatedAt:TS()});toast(publicado?'Depoimento publicado':'Depoimento ocultado');}
-  catch(e){showNotice(e.message||'Não foi possível atualizar o depoimento.','error');}
-}
-function excluirDepoimento(id){
-  openModal('Excluir depoimento','<p class="modal-msg">Tem certeza de que deseja excluir este depoimento do catálogo?</p>',async()=>{
-    const d=DEPOIMENTOS.find(x=>x.id===id);
-    await db.collection('depoimentos_publicos').doc(id).delete();
-    if(d?.fotoPath){try{await storage.ref().child(d.fotoPath).delete();}catch(e){console.warn('Foto não removida do Storage:',e);}}
-    return true;
-  },{saveLabel:'Excluir',danger:true,okMsg:'Depoimento excluído',noReload:true});
-}
-
 function go(page){
   PAGE=page;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  const titles={dashboard:'Dashboard',produtos:'Produtos',simulador:'Simulador de lucro',vendas:'Vendas',clientes:'Clientes',mural:'Mural de avisos',depoimentos:'Depoimentos',compras:'Compras / Estoque',gastos:'Gastos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
+  const titles={dashboard:'Dashboard',produtos:'Produtos',vendas:'Vendas',clientes:'Clientes',mural:'Mural de avisos',compras:'Compras / Estoque',gastos:'Gastos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
   document.getElementById('page-title').textContent=titles[page];
-  const r={dashboard:renderDashboard,produtos:renderProdutos,simulador:renderSimulador,vendas:renderVendas,clientes:renderClientes,mural:renderMural,depoimentos:renderDepoimentos,compras:renderCompras,gastos:renderGastos,reinvest:renderReinvest,receber:renderReceber};
+  const r={dashboard:renderDashboard,produtos:renderProdutos,vendas:renderVendas,clientes:renderClientes,mural:renderMural,compras:renderCompras,gastos:renderGastos,reinvest:renderReinvest,receber:renderReceber};
   document.getElementById('content').innerHTML=r[page]();
-  if(page==='simulador') calcSimulador();
 }
 
 const total=(list,key='valor')=>(list||[]).reduce((s,x)=>s+Number(x[key]||0),0);
@@ -494,9 +432,7 @@ const nomeProd=o=>{ const it=itensVenda(o); return it.length>1?it.map(x=>x.produ
 const custoVenda=v=>itensVenda(v).reduce((s,it)=>s+Number(it.custo??byId('produtos',it.produtoId)?.custo??0)*Number(it.qtd||0),0);
 
 const parcelasDe=v=>v.parcelas||[];
-// O saldo a receber é o total da venda menos o que já entrou. Isso também contempla
-// vendas antigas/à vista com recebimento parcial, sem depender apenas de parcelas.
-const aReceber=v=>Math.max(0,round2(Number(v.valor||0)-recebidoVenda(v)));
+const aReceber=v=>parcelasDe(v).filter(p=>!p.pago).reduce((s,p)=>s+Number(p.valor||0),0);
 function addDays(s,n){ const d=new Date(s+'T12:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
 function addMonths(s,n){ const [y,m,d]=s.split('-').map(Number); const t=new Date(y,m-1+n,1,12); t.setDate(Math.min(d,new Date(y,m+n,0).getDate())); return t.toISOString().slice(0,10); }
 function pagtoLabel(v){
@@ -547,41 +483,6 @@ function renderSalesChart(){ const now=new Date(today()+'T12:00:00'); const arr=
 function exportarBackup(){ const data={versao:2,exportadoEm:new Date().toISOString(),colecoes:{produtos:DATA.produtos,clientes:DATA.clientes,vendas:DATA.vendas,compras:DATA.compras,gastos:DATA.gastos,reinvestimentos:DATA.reinvestimentos,avisos:DATA.avisos}}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`zm-pratas-backup-${today()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast('Backup baixado'); }
 function importarBackup(){ const input=document.createElement('input'); input.type='file'; input.accept='.json,application/json'; input.onchange=async()=>{ const f=input.files?.[0]; if(!f)return; try{ const data=JSON.parse(await f.text()); const c=data.colecoes||data; const names=NAMES.filter(n=>Array.isArray(c[n])); if(!names.length)throw Error('Arquivo sem dados reconhecidos.'); openModal('Restaurar backup',`<p class="modal-msg">Serão importados <strong>${names.map(n=>`${n}: ${c[n].length}`).join(' · ')}</strong>.</p><p class="modal-msg" style="margin-top:.5rem">Registros existentes não serão apagados; os registros do backup serão adicionados com os mesmos IDs quando possível.</p>`,async()=>{ for(const n of names){ for(const item of c[n]){ if(!item.id)continue; const copy={...item}; delete copy.id; await col(n).doc(item.id).set(copy,{merge:true}); } } await loadAll(); go(PAGE); return true; },{okMsg:'Backup restaurado'}); }catch(e){showNotice('Não foi possível ler o backup.','error');} }; input.click(); }
 
-/* ---------- Simulador de lucro (não grava nem altera dados) ---------- */
-function renderSimulador(){
-  if(!DATA.produtos.length){
-    return `<div class="card"><div class="card-header"><h3>Simulador de lucro</h3></div><p>Cadastre um produto em <strong>Produtos</strong> para começar. O simulador usará automaticamente o custo já registrado.</p></div>`;
-  }
-  const primeiro=DATA.produtos[0];
-  return `<div class="card" style="max-width:850px">
-    <div class="card-header"><div><h3>Simulador de lucro</h3><p class="meta">Teste preços antes de vender, sem registrar vendas ou alterar o estoque.</p></div></div>
-    <div class="field"><label>Escolha a joia</label><select id="sim-produto" onchange="simSelecionarProduto()">${DATA.produtos.map(p=>`<option value="${p.id}" ${p.id===primeiro.id?'selected':''}>${esc(p.nome)} · custo ${money(p.custo||0)}</option>`).join('')}</select></div>
-    <div class="row-2"><div class="field"><label>Custo cadastrado da joia (R$)</label><input id="sim-custo" type="number" value="${Number(primeiro.custo||0).toFixed(2)}" readonly/></div><div class="field"><label>Preço de venda para simular (R$)</label><input id="sim-preco" type="number" min="0" step="0.01" value="${Number(primeiro.preco||0).toFixed(2)}" oninput="calcSimulador()"/></div></div>
-    <div class="row-2"><div class="field"><label>Outros custos por peça (R$)</label><input id="sim-extra" type="number" min="0" step="0.01" value="0" oninput="calcSimulador()"/><small class="meta">Ex.: embalagem ou frete.</small></div><div class="field"><label>Taxa/comissão da venda (%)</label><input id="sim-taxa" type="number" min="0" max="100" step="0.1" value="0" oninput="calcSimulador()"/></div></div>
-    <div class="row-2"><div class="field"><label>Lucro desejado (%) sobre o custo total</label><input id="sim-markup" type="number" min="0" step="1" value="100" oninput="calcSimulador()"/></div><div class="field"><label>Preço sugerido</label><input id="sim-sugerido" readonly value="—"/></div></div>
-    <div class="row-2" style="margin-top:.5rem"><div class="kpi"><div class="kpi-label">Custo total estimado</div><div class="kpi-value" id="sim-total-custo">R$ 0,00</div></div><div class="kpi"><div class="kpi-label">Lucro estimado por joia</div><div class="kpi-value" id="sim-lucro">R$ 0,00</div><div class="kpi-sub" id="sim-margem">Margem: 0%</div></div></div>
-    <p class="meta" id="sim-nota" style="margin-top:1rem">Simulação apenas: nada será salvo no financeiro, nas vendas ou no estoque.</p>
-  </div>`;
-}
-function simSelecionarProduto(){
-  const p=byId('produtos',val('sim-produto')); if(!p)return;
-  const c=document.getElementById('sim-custo'),v=document.getElementById('sim-preco');
-  if(c)c.value=Number(p.custo||0).toFixed(2); if(v)v.value=Number(p.preco||0).toFixed(2); calcSimulador();
-}
-function calcSimulador(){
-  const custo=Number(val('sim-custo'))||0, extra=Math.max(0,Number(val('sim-extra'))||0);
-  const taxa=Math.min(100,Math.max(0,Number(val('sim-taxa'))||0))/100;
-  const preco=Math.max(0,Number(val('sim-preco'))||0), markup=Math.max(0,Number(val('sim-markup'))||0)/100;
-  const base=custo+extra, lucro=preco*(1-taxa)-base, margem=preco>0?lucro/preco*100:0;
-  const sugerido=(1-taxa)>0?base*(1+markup)/(1-taxa):0;
-  const fmt=n=>money(Number.isFinite(n)?n:0),set=(id,value)=>{const e=document.getElementById(id);if(e)e.textContent=value;};
-  set('sim-total-custo',fmt(base)); set('sim-lucro',fmt(lucro));
-  set('sim-margem',`Margem líquida estimada: ${margem.toLocaleString('pt-BR',{maximumFractionDigits:1})}%`);
-  const s=document.getElementById('sim-sugerido');if(s)s.value=fmt(sugerido);
-  const l=document.getElementById('sim-lucro');if(l)l.style.color=lucro<0?'var(--danger)':'var(--success)';
-  set('sim-nota',lucro<0?'Atenção: neste preço, o valor recebido após a taxa fica abaixo do custo estimado.':'Simulação apenas: nada será salvo no financeiro, nas vendas ou no estoque.');
-}
-
 /* ---------- Produtos ---------- */
 function renderProdutos(){
   return `<div class="toolbar"><div><div style="font-size:.75rem;color:var(--muted);margin-bottom:.25rem">Catálogo</div><strong style="font-size:1.05rem">${DATA.produtos.length} produto(s)</strong></div><div style="display:flex;gap:.55rem;flex-wrap:wrap;align-items:center"><input class="search" placeholder="🔎 Buscar nome, SKU ou categoria..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div></div>
@@ -592,14 +493,40 @@ function renderProdutos(){
 }
 async function uploadFotoProduto(file,produtoId){
   if(!file) return null;
-  if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
+  if(!file.type || !file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
   if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
-  const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg');
+  if(!USER || !USER.uid) throw new Error('Você precisa estar logada para enviar fotos.');
+  if(!storage) throw new Error('O Firebase Storage não foi inicializado.');
+  const ext=(file.name && file.name.includes('.')
+    ? file.name.split('.').pop().toLowerCase()
+    : (file.type.split('/')[1]||'jpg').replace('jpeg','jpg').replace('svg+xml','svg'));
   const path=`users/${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
-  const ref=storage.ref(path);
-  await ref.put(file,{contentType:file.type});
-  return {url:await ref.getDownloadURL(),path};
+  const ref=storage.ref().child(path);
+  const snapshot=await ref.put(file,{contentType:file.type});
+  const url=await snapshot.ref.getDownloadURL();
+  if(!url) throw new Error('Não foi possível obter o endereço da foto.');
+  return {url,path};
 }
+async function sincronizarCatalogoPublico(produtoId, produto){
+  if(!USER?.uid) throw new Error('Usuário não autenticado.');
+  const ref=db.collection('catalogo_publico').doc(`${USER.uid}_${produtoId}`);
+  if(produto.publicarCatalogo !== true){
+    const existente=await ref.get();
+    if(existente.exists) await ref.delete();
+    return;
+  }
+  await ref.set({
+    ownerUid: USER.uid,
+    produtoId,
+    nome: String(produto.nome||''),
+    sku: String(produto.sku||''),
+    cat: String(produto.cat||'Geral'),
+    preco: Number(produto.preco||0),
+    imagem_url: String(produto.foto||''),
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
 function modalProduto(id){
   const p=byId('produtos',id)||{};
   window.__produtoFotoFile=null; window.__removerFoto=false;
@@ -614,7 +541,11 @@ function modalProduto(id){
     <div class="row-2"><div class="field"><label>SKU / Código</label><input id="f-sku" value="${esc(p.sku||'')}" placeholder="Ex.: AN001"/></div><div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div></div>
     <div class="row-2"><div class="field"><label>Preço</label><input id="f-preco" type="number" step="0.01" min="0" value="${p.preco??''}"/></div>
     <div class="field"><label>Custo</label><input id="f-custo" type="number" step="0.01" min="0" value="${p.custo??''}"/></div></div>
-    <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>`,async()=>{
+    <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>
+    <label style="display:flex;align-items:flex-start;gap:.65rem;padding:.85rem;border:1px solid var(--border);border-radius:10px;margin-top:.35rem;cursor:pointer">
+      <input id="f-publicar-catalogo" type="checkbox" ${p.publicarCatalogo===true?'checked':''} style="margin-top:.2rem;width:17px;height:17px;flex-shrink:0"/>
+      <span><strong>Exibir no catálogo público</strong><span class="meta" style="display:block;margin-top:.2rem">Quando marcado, nome, categoria, preço, código e foto ficam visíveis no site público.</span></span>
+    </label>`,async()=>{
     const nome=val('f-nome'), precoTexto=val('f-preco'), preco=Number(precoTexto);
     if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
@@ -623,7 +554,7 @@ function modalProduto(id){
       // Assim, se houver algum problema no Storage, o produto não é perdido.
       let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
-      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
+      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,publicarCatalogo:document.getElementById('f-publicar-catalogo').checked,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
       if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Firebase Firestore não foi inicializado. Recarregue a página.'});
@@ -639,10 +570,25 @@ function modalProduto(id){
         try{
           const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
           await produtoRef.set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
+          foto=up.url; fotoPath=up.path; payload.foto=up.url; payload.fotoPath=up.path;
         }catch(photoErr){
-          console.error('Erro ao enviar foto:',photoErr);
-          toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
+          console.error('Erro ao enviar foto ao Firebase Storage:',photoErr);
+          const raw=String(photoErr?.message||photoErr||'Erro desconhecido');
+          let friendly='A foto não foi enviada ao Firebase Storage. O produto foi salvo.';
+          if(/storage\/unauthorized|permission-denied|unauthorized/i.test(raw)) friendly='O Firebase Storage recusou a gravação. Confira as regras de segurança do Firebase Storage para usuários autenticados.';
+          else if(/storage\/bucket-not-found|bucket/i.test(raw)) friendly='Confira se o bucket do Firebase Storage está configurado corretamente no projeto.';
+          else if(/payload too large|maximum.*size|exceeded the maximum/i.test(raw)) friendly='A imagem excede o limite de tamanho permitido pelo Supabase.';
+          toast(friendly);
+          showNotice(friendly+' Detalhe técnico: '+raw,'error');
         }
+      }
+      // Sincroniza apenas os campos destinados ao catálogo público.
+      // Custo, estoque, fotoPath e demais dados internos nunca são publicados.
+      try{
+        await sincronizarCatalogoPublico(produtoId, payload);
+      }catch(publicErr){
+        console.error('Erro ao sincronizar catálogo público:', publicErr);
+        showNotice('Produto salvo, mas não foi possível atualizar o catálogo público. Confira as regras do Firestore.','error');
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
       return true;
@@ -665,7 +611,15 @@ function removerFotoProduto(){ window.__removerFoto=true; window.__produtoFotoFi
 function delProduto(id){
   const usado=DATA.vendas.some(v=>v.produtoId===id)||DATA.compras.some(c=>c.produtoId===id);
   if(usado){ showNotice('Este produto tem vendas ou compras registradas e não pode ser excluído. Zere o estoque para tirá-lo de uso.','info'); return; }
-  delDoc('produtos',id);
+  openModal('Excluir produto','<p class="modal-msg">Tem certeza que deseja excluir este produto? Se estiver publicado, ele também será removido do catálogo público.</p>',async()=>{
+    const publicRef=db.collection('catalogo_publico').doc(`${USER.uid}_${id}`);
+    const publicDoc=await publicRef.get();
+    if(publicDoc.exists) await publicRef.delete();
+    await col('produtos').doc(id).delete();
+    await loadAll();
+    go('produtos');
+    return true;
+  },{saveLabel:'Excluir',danger:true,okMsg:'Produto excluído'});
 }
 
 /* ---------- Vendas ---------- */
@@ -685,7 +639,7 @@ function modalVenda(){
     <div class="field"><label>Cliente</label><select id="f-cli">${oc}</select></div>
     <div class="field"><label>Itens da venda</label><div id="sale-items" class="sales-items"></div><button type="button" class="btn btn-outline btn-sm" onclick="addSaleItem()">+ Adicionar produto</button></div>
     <div class="row-2"><div class="field"><label>Desconto / acréscimo</label><div style="display:flex;gap:.4rem"><input id="f-dsc" type="number" step="0.01" min="0" placeholder="0" oninput="calcSale()"/><select id="f-dtipo" onchange="calcSale()" style="width:96px;flex:none"><option value="-r">Desc. R$</option><option value="-p">Desc. %</option><option value="+r">Acrésc. R$</option><option value="+p">Acrésc. %</option></select></div></div><div class="field"><label>Total da venda</label><input id="f-val" type="number" step="0.01" min="0" readonly/></div></div>
-    <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div><div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option><option value="2">A prazo — 2 parcelas</option>${[3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">A prazo — ${n} parcelas</option>`).join('')}</select></div></div>
+    <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div><div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option>${[2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">${n} vezes</option>`).join('')}</select></div></div>
     <div id="box-2x" style="display:none"><div class="row-2"><div class="field"><label>Vencimento da 2ª parcela</label><input id="f-venc2" type="date" value="${addDays(today(),30)}"/></div><div class="field"><label>1ª parcela (entrada)</label><select id="f-pago1"><option value="1">Já paga</option><option value="0">Pendente</option></select></div></div><p class="modal-msg">As parcelas seguintes vencem mensalmente.</p></div>
     <div class="row-2"><div class="field"><label>Forma de pagamento</label><select id="f-forma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select></div><div class="field"><label>Valor recebido / entrada</label><input id="f-recebido" type="number" step="0.01" min="0" value="0" oninput="calcTroco()"/></div></div>
     <div id="troco-box" class="modal-msg">Troco: <strong>R$ 0,00</strong></div>`,async()=>{
@@ -698,11 +652,7 @@ function modalVenda(){
       const snaps=[]; for(const ref of pref) snaps.push(await t.get(ref));
       const saved=[]; for(let i=0;i<items.length;i++){ const snap=snaps[i]; if(!snap.exists) throw Object.assign(new Error(),{userMsg:'Produto não encontrado.'}); const pd=snap.data(), item=items[i]; if(Number(pd.estoque||0)<item.qtd) throw Object.assign(new Error(),{userMsg:`Estoque insuficiente para ${pd.nome}.`}); saved.push({...item,produtoNome:pd.nome,precoUnitario:item.preco,custo:Number(pd.custo||0)}); t.update(pref[i],{estoque:Number(pd.estoque||0)-item.qtd}); }
       const subtotal=saved.reduce((s,x)=>s+x.preco*x.qtd,0); const desconto=val('f-dtipo').startsWith('-')?round2(subtotal-valor):0, acrescimo=val('f-dtipo').startsWith('+')?round2(valor-subtotal):0;
-      const recebidoDigitado=Math.max(0,+val('f-recebido')||0);
-      // Em venda à vista, deixar o campo vazio/zero significa pagamento integral.
-      // Se informar um valor parcial, o saldo fica visível em 'A receber'.
-      const valorRecebido=n===1?(recebidoDigitado>0?Math.min(valor,recebidoDigitado):valor):recebidoDigitado;
-      t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',itens:saved,produtoId:saved[0].produtoId,produtoNome:saved[0].produtoNome,qtd:saved.reduce((s,x)=>s+x.qtd,0),precoUnitario:saved[0].preco,custo:saved[0].custo,subtotal,desconto,acrescimo,valor,data,formaPagamento:val('f-forma'),valorRecebido,createdAt:TS()});
+      t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',itens:saved,produtoId:saved[0].produtoId,produtoNome:saved[0].produtoNome,qtd:saved.reduce((s,x)=>s+x.qtd,0),precoUnitario:saved[0].preco,custo:saved[0].custo,subtotal,desconto,acrescimo,valor,data,formaPagamento:val('f-forma'),valorRecebido:+val('f-recebido')||0,createdAt:TS()});
     });
     return true;
   });
@@ -910,17 +860,7 @@ function renderReceber(){
 
 /* ---------- Reinvestimento ---------- */
 // Dinheiro efetivamente recebido: venda à vista = valor; parcelada = só parcelas pagas
-const recebidoVenda=v=>{
-  if(parcelasDe(v).length) return round2(parcelasDe(v).filter(p=>p.pago).reduce((s,p)=>s+Number(p.valor||0),0));
-  // Se o campo existe, respeita exatamente o valor informado, inclusive zero.
-  // Só vendas antigas que não possuem o campo usam o total como valor recebido
-  // para manter compatibilidade com registros legados.
-  const valor=Number(v.valor||0);
-  if(Object.prototype.hasOwnProperty.call(v,'valorRecebido') && v.valorRecebido!==null && v.valorRecebido!=='') {
-    return round2(Math.max(0,Math.min(valor,Number(v.valorRecebido)||0)));
-  }
-  return round2(valor);
-};
+const recebidoVenda=v=>parcelasDe(v).length?parcelasDe(v).filter(p=>p.pago).reduce((s,p)=>s+Number(p.valor||0),0):Number(v.valor||0);
 // Caixa real antes de retiradas: recebido nas vendas - compras - gastos
 function caixaAntesRetiradas(){ return DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0)-total(DATA.compras)-total(DATA.gastos); }
 function totalRetiradas(){ return total(DATA.reinvestimentos,'retirada'); }
@@ -956,12 +896,9 @@ function modalReinvestimento(){
     <div class="modal-msg">Caixa livre antes deste registro: <strong>${money(caixaLivre())}</strong></div>`,async()=>{
       const retirada=+val('f-retirada')||0, reinvestimento=+val('f-reinv')||0;
       if(retirada<=0 && reinvestimento<=0){ modalError('Informe um valor para retirada ou reinvestimento.'); return false; }
-      const disponivel=Math.max(0,round2(caixaLivre()));
-      const totalMovimento=round2(retirada+reinvestimento);
-      if(totalMovimento>disponivel){
-        modalError(`Não é possível registrar R$ ${totalMovimento.toFixed(2).replace('.', ',')} porque o caixa livre disponível é de R$ ${disponivel.toFixed(2).replace('.', ',')}. O sistema considera somente o dinheiro já recebido, descontando compras, gastos, retiradas e a reserva existente. Parcelas pendentes não podem ser usadas. Confira os valores ou aguarde o recebimento.`);
-        return false;
-      }
+      // Registrar a movimentação real mesmo quando ela ultrapassa o caixa calculado.
+      // O saldo poderá ficar negativo e mostrar a diferença a conferir, em vez de impedir
+      // que o usuário registre um dinheiro que já separou/retirou.
       await col('reinvestimentos').add({data:val('f-data')||today(),retirada,reinvestimento,obs:val('f-obs'),createdAt:TS()});
       return true;
     },{okMsg:'Registro salvo'});
@@ -973,7 +910,7 @@ function renderReinvest(){
   const [de,ate]=rangeDates(), inR=l=>l.filter(x=>(x.data||'')>=de&&(x.data||'')<=ate);
   const vs=inR(DATA.vendas).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
   const rs=inR(DATA.reinvestimentos).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
-  const vend=vs.reduce((s,v)=>s+recebidoVenda(v),0), custo=vs.reduce((s,v)=>{const totalVenda=Number(v.valor||0); const recebido=recebidoVenda(v); const proporcao=totalVenda>0?Math.min(1,recebido/totalVenda):0; return s+custoVenda(v)*proporcao;},0), gas=total(inR(DATA.gastos)), comp=total(inR(DATA.compras));
+  const vend=total(vs), custo=vs.reduce((s,v)=>s+custoVenda(v),0), gas=total(inR(DATA.gastos)), comp=total(inR(DATA.compras));
   const lucroBruto=vend-custo, lucroLiquido=lucroBruto-gas;
   const retir=total(rs,'retirada'), reinv=total(rs,'reinvestimento');
   const rec=DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0), ct=total(DATA.compras), gt=total(DATA.gastos);
@@ -982,24 +919,11 @@ function renderReinvest(){
   const tabs=[['dia','Hoje'],['semana','Semana'],['mes','Mês'],['tudo','Tudo'],['custom','Personalizado']];
   const k=(l,v,s)=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${money(v)}</div>${s?`<div class="kpi-sub">${s}</div>`:''}</div>`;
   return `<div class="hero ${livre<0?'neg':''}">
-    <div class="hero-label">💵 DINHEIRO REALMENTE DISPONÍVEL PARA REINVESTIR</div>
-    <div class="hero-value">${money(Math.max(0,livre))}</div>
-    <div class="hero-eq">Este é o limite para novas retiradas e reservas. O cálculo usa apenas dinheiro recebido e desconta compras, gastos, retiradas e valores já separados.</div>
-    ${livre<0?`<div class="hero-eq">⚠️ O caixa está negativo em ${money(Math.abs(livre))}. Não é possível registrar nova retirada ou reserva até conferir os lançamentos.</div>`:''}
-  </div>
-  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
-    ${k('💰 Dinheiro já recebido',rec,'Somente parcelas pagas e vendas recebidas')}
-    ${k('⏳ Ainda a receber',pend,'Não pode ser usado para investir')}
-    ${k('🛒 Compras realizadas',ct)}
-    ${k('💸 Gastos registrados',gt)}
-    ${k('🙋 Retiradas já feitas',totalRetiradas())}
-    ${k('🔒 Reserva de reinvestimento restante',saldoReservaReinvestimento(),'Já separada; não está livre para usar novamente')}
-    ${k('✅ Disponível para novas separações',Math.max(0,livre),'Valor máximo que pode ser retirado ou separado')}
-  </div>
-  <div class="card" style="border:2px solid var(--primary);padding:1rem;margin-bottom:1rem">
-    <h3 style="margin-top:0">Importante sobre o reinvestimento</h3>
-    <p style="margin-bottom:.4rem">O sistema <strong>não considera parcelas pendentes como dinheiro disponível</strong>. Você só pode registrar retirada e/ou reinvestimento até o limite de <strong>${money(Math.max(0,livre))}</strong>.</p>
-    <p style="margin-bottom:0">Se a cliente ainda não pagou uma parcela, esse valor aparece em “Ainda a receber” e fica fora do caixa para investir.</p>
+    <div class="hero-label">💵 Caixa livre para você decidir</div>
+    <div class="hero-value">${money(livre)}</div>
+    <div class="hero-eq">Recebido ${money(rec)} − Compras ${money(ct)} − Gastos ${money(gt)} − Retiradas ${money(totalRetiradas())} − Reservado ${money(totalSeparadoReinvestimento())}</div>
+    ${pend>0?`<div class="hero-eq">Ainda a receber em parcelas: ${money(pend)} (não incluído no caixa)</div>`:''}
+    ${livre<0?`<div class="hero-eq">⚠️ Há uma diferença de ${money(Math.abs(livre))} entre as movimentações registradas e o caixa recebido. Confira valores ainda não recebidos, gastos e retiradas.</div>`:''}
   </div>
   <div class="toolbar">
     <div style="display:flex;gap:.4rem;flex-wrap:wrap">${tabs.map(([t,l])=>`<button class="btn btn-sm ${RANGE.tipo===t?'btn-primary':'btn-outline'}" onclick="setRange('${t}')">${l}</button>`).join('')}</div>
@@ -1009,7 +933,7 @@ function renderReinvest(){
     </div>
   </div>
   <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-    ${k('💰 Valor recebido',vend,vs.length+' venda(s) no período; somente pagamentos recebidos')}
+    ${k('💰 Total vendido',vend,vs.length+' venda(s) no período')}
     ${k('📦 Custo das joias',custo,'Capital das peças vendidas')}
     ${k('📈 Lucro bruto',lucroBruto,'Vendas − custo das joias')}
     ${k('💎 Lucro após gastos',lucroLiquido,'Lucro bruto − gastos')}
@@ -1021,8 +945,8 @@ function renderReinvest(){
   <div class="card"><div class="card-header"><h3>Retiradas e reinvestimentos</h3><span class="meta">${rs.length} registro(s)</span></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Retirada</th><th>Reinvestimento</th><th>Observação</th><th></th></tr></thead><tbody>
     ${rs.map(r=>`<tr><td>${fmtDate(r.data)}</td><td>${r.retirada>0?`<strong style="color:var(--danger)">${money(r.retirada)}</strong>`:'—'}</td><td>${r.reinvestimento>0?`<strong style="color:var(--success)">${money(r.reinvestimento)}</strong>`:'—'}</td><td>${esc(r.obs||'—')}</td><td><button class="btn btn-danger btn-sm" onclick="delReinvestimento('${r.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhuma retirada ou reinvestimento registrado no período</td></tr>'}
   </tbody></table></div></div>
-  <div class="card"><div class="card-header"><h3>Vendas e recebimentos do período</h3></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Recebido</th><th>Custo proporcional</th><th>Lucro estimado</th></tr></thead><tbody>
-  ${vs.map(v=>{const recebido=recebidoVenda(v),totalVenda=Number(v.valor||0),proporcao=totalVenda>0?Math.min(1,recebido/totalVenda):0,c=custoVenda(v)*proporcao,l=recebido-c;return `<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(recebido)}</td><td>${money(c)}</td><td><strong style="color:${l<0?'var(--danger)':'var(--success)'}">${money(l)}</strong></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Nenhuma venda no período</td></tr>'}
+  <div class="card"><div class="card-header"><h3>Vendas do período</h3></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Vendido</th><th>Custo</th><th>Lucro</th></tr></thead><tbody>
+  ${vs.map(v=>{const c=custoVenda(v),l=Number(v.valor||0)-c;return `<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(v.valor)}</td><td>${money(c)}</td><td><strong style="color:${l<0?'var(--danger)':'var(--success)'}">${money(l)}</strong></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Nenhuma venda no período</td></tr>'}
   </tbody></table></div></div>`;
 }
 // Aviso ao registrar compra: compara com o valor disponível para novas compras.
