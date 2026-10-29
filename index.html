@@ -690,17 +690,31 @@ function modalVenda(){
     <div id="troco-box" class="modal-msg">Troco: <strong>R$ 0,00</strong></div>`,async()=>{
     const clienteId=val('f-cli'), data=val('f-data')||today(), valor=+val('f-val')||0, items=collectSaleItems();
     if(!clienteId||!items.length||!(valor>=0)){ modalError('Informe cliente, produto e valores.'); return false; }
-    const n=+val('f-pag')||1; let parcelas=null;
-    if(n>1){ const vp=round2(valor/n), v2=val('f-venc2')||addMonths(data,1); parcelas=Array.from({length:n},(_,i)=>({valor:i===n-1?round2(valor-vp*(n-1)):vp,venc:i===0?data:addMonths(v2,i-1),pago:i===0&&val('f-pago1')==='1'})); }
+    const n=+val('f-pag')||1;
+    const recebidoDigitado=Math.max(0,round2(+val('f-recebido')||0));
+    let parcelas=null;
+    if(n>1){
+      const entradaPaga=val('f-pago1')==='1';
+      if(recebidoDigitado>valor){ modalError('O valor recebido não pode ser maior que o total da venda.'); return false; }
+      // Se a entrada já foi paga, a 1ª parcela usa o valor realmente recebido.
+      // O restante é dividido entre as parcelas seguintes, fechando exatamente o total.
+      const entrada=entradaPaga?recebidoDigitado:round2(valor/n);
+      if(entrada>valor){ modalError('A entrada não pode ser maior que o total da venda.'); return false; }
+      const restante=round2(valor-entrada), qtdRestantes=n-1, base=round2(restante/qtdRestantes), v2=val('f-venc2')||addMonths(data,1);
+      parcelas=Array.from({length:n},(_,i)=>({
+        valor:i===0?entrada:(i===n-1?round2(restante-base*(qtdRestantes-1)):base),
+        venc:i===0?data:addMonths(v2,i-1),
+        pago:i===0&&entradaPaga
+      }));
+    }
     const ids=items.map(x=>x.produtoId), pref=ids.map(id=>col('produtos').doc(id));
     await db.runTransaction(async t=>{
       const snaps=[]; for(const ref of pref) snaps.push(await t.get(ref));
       const saved=[]; for(let i=0;i<items.length;i++){ const snap=snaps[i]; if(!snap.exists) throw Object.assign(new Error(),{userMsg:'Produto não encontrado.'}); const pd=snap.data(), item=items[i]; if(Number(pd.estoque||0)<item.qtd) throw Object.assign(new Error(),{userMsg:`Estoque insuficiente para ${pd.nome}.`}); saved.push({...item,produtoNome:pd.nome,precoUnitario:item.preco,custo:Number(pd.custo||0)}); t.update(pref[i],{estoque:Number(pd.estoque||0)-item.qtd}); }
       const subtotal=saved.reduce((s,x)=>s+x.preco*x.qtd,0); const desconto=val('f-dtipo').startsWith('-')?round2(subtotal-valor):0, acrescimo=val('f-dtipo').startsWith('+')?round2(valor-subtotal):0;
-      const recebidoDigitado=Math.max(0,+val('f-recebido')||0);
-      // Em venda à vista, deixar o campo vazio/zero significa pagamento integral.
-      // Se informar um valor parcial, o saldo fica visível em 'A receber'.
-      const valorRecebido=n===1?(recebidoDigitado>0?Math.min(valor,recebidoDigitado):valor):recebidoDigitado;
+      // À vista, zero/vazio mantém a regra de pagamento integral; a prazo,
+      // o recebido efetivo é calculado pelas parcelas marcadas como pagas.
+      const valorRecebido=n===1?(recebidoDigitado>0?Math.min(valor,recebidoDigitado):valor):round2(parcelas.filter(p=>p.pago).reduce((s,p)=>s+p.valor,0));
       t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',itens:saved,produtoId:saved[0].produtoId,produtoNome:saved[0].produtoNome,qtd:saved.reduce((s,x)=>s+x.qtd,0),precoUnitario:saved[0].preco,custo:saved[0].custo,subtotal,desconto,acrescimo,valor,data,formaPagamento:val('f-forma'),valorRecebido,createdAt:TS()});
     });
     return true;
@@ -719,7 +733,13 @@ function updPag(){ const b=document.getElementById('box-2x'); if(b)b.style.displ
 function calcTroco(){ const b=document.getElementById('troco-box'); if(!b)return; const totalv=+val('f-val')||0, rec=+val('f-recebido')||0; b.innerHTML=rec>=totalv?`Troco: <strong>${money(rec-totalv)}</strong>`:`Falta: <strong>${money(totalv-rec)}</strong>`; }
 function modalParcelas(id){
   const v=byId('vendas',id); if(!v) return; const ps=parcelasDe(v);
-  openModal('Parcelas · '+esc(nomeCli(v)),`<p class="modal-msg" style="margin-bottom:.6rem">${esc(nomeProd(v))} · total ${money(v.valor)}</p>`+ps.map((p,i)=>`<label style="display:flex;justify-content:space-between;gap:.5rem;padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.85rem"><span><input type="checkbox" id="pp-${i}" ${p.pago?'checked':''}/> ${i+1}ª · ${money(p.valor)}</span><span style="color:var(--muted)">vence ${fmtDate(p.venc)}</span></label>`).join(''),async()=>{ const novo=ps.map((p,i)=>({...p,pago:document.getElementById('pp-'+i).checked})); await col('vendas').doc(id).update({parcelas:novo}); return true; },{okMsg:'Parcelas atualizadas'});
+  openModal('Parcelas · '+esc(nomeCli(v)),`<p class="modal-msg" style="margin-bottom:.6rem">${esc(nomeProd(v))} · total ${money(v.valor)}. Confira os valores de cada parcela e marque as que já foram pagas.</p>`+ps.map((p,i)=>`<div style="display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:.6rem;align-items:center;padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.85rem"><label><input type="checkbox" id="pp-${i}" ${p.pago?'checked':''}/> ${i+1}ª parcela<br><span style="color:var(--muted);font-size:.72rem">Vence ${fmtDate(p.venc)}</span></label><div class="field" style="margin:0"><label>Valor (R$)</label><input id="pv-${i}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"/></div></div>`).join(''),async()=>{
+    const novo=ps.map((p,i)=>({...p,valor:round2(Math.max(0,Number(document.getElementById('pv-'+i).value)||0)),pago:document.getElementById('pp-'+i).checked}));
+    const soma=round2(novo.reduce((s,p)=>s+p.valor,0));
+    if(Math.abs(soma-Number(v.valor||0))>0.01){modalError(`A soma das parcelas (${money(soma)}) precisa ser igual ao total da venda (${money(v.valor)}).`);return false;}
+    await col('vendas').doc(id).update({parcelas:novo,valorRecebido:round2(novo.filter(p=>p.pago).reduce((s,p)=>s+p.valor,0))});
+    return true;
+  },{okMsg:'Parcelas atualizadas'});
 }
 function imprimirVenda(id){ const v=byId('vendas',id); if(!v)return; const c=byId('clientes',v.clienteId); const items=itensVenda(v); const root=document.getElementById('toast-root'); const old=document.getElementById('receipt-print'); if(old)old.remove(); const el=document.createElement('div'); el.id='receipt-print'; el.className='receipt-print'; el.innerHTML=`<h1>ZM Pratas</h1><div class="center">Comprovante de venda</div><div class="center">${fmtDate(v.data)} · ${esc(nomeCli(v))}</div><table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>${items.map(i=>`<tr><td>${esc(i.produtoNome||byId('produtos',i.produtoId)?.nome||'Produto')}</td><td>${i.qtd}</td><td>${money(i.preco*i.qtd)}</td></tr>`).join('')}</tbody></table><div class="total">Total: ${money(v.valor)}</div><div>Pagamento: ${esc(v.formaPagamento||'—')}</div><div>Recebido: ${money(v.valorRecebido||recebidoVenda(v))}</div><div>Cliente: ${esc(c?.telefone||'')}</div>`; document.body.appendChild(el); window.print(); setTimeout(()=>el.remove(),800); }
 function delVenda(id){
