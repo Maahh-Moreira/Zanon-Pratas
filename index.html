@@ -244,7 +244,6 @@ td{padding:.85rem 1rem}
       <button class="nav-item" data-page="simulador" onclick="go('simulador')"><span class="ico">％</span><span>Simulador</span></button>
       <button class="nav-item" data-page="vendas" onclick="go('vendas')"><span class="ico">▲</span><span>Vendas</span></button>
       <button class="nav-item" data-page="clientes" onclick="go('clientes')"><span class="ico">○</span><span>Clientes</span></button>
-      <button class="nav-item" data-page="mural" onclick="go('mural')"><span class="ico">▤</span><span>Mural de avisos</span></button>
       <button class="nav-item" data-page="depoimentos" onclick="go('depoimentos')"><span class="ico">♡</span><span>Depoimentos</span></button>
       <div class="nav-group-title">Financeiro</div>
       <button class="nav-item" data-page="compras" onclick="go('compras')"><span class="ico">◇</span><span>Compras</span></button>
@@ -477,9 +476,9 @@ function excluirDepoimento(id){
 function go(page){
   PAGE=page;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  const titles={dashboard:'Dashboard',produtos:'Produtos',simulador:'Simulador de lucro',vendas:'Vendas',clientes:'Clientes',mural:'Mural de avisos',depoimentos:'Depoimentos',compras:'Compras / Estoque',gastos:'Gastos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
+  const titles={dashboard:'Dashboard',produtos:'Produtos',simulador:'Simulador de lucro',vendas:'Vendas',clientes:'Clientes',depoimentos:'Depoimentos',compras:'Compras / Estoque',gastos:'Gastos',reinvest:'Reinvestimento',receber:'Contas a Receber'};
   document.getElementById('page-title').textContent=titles[page];
-  const r={dashboard:renderDashboard,produtos:renderProdutos,simulador:renderSimulador,vendas:renderVendas,clientes:renderClientes,mural:renderMural,depoimentos:renderDepoimentos,compras:renderCompras,gastos:renderGastos,reinvest:renderReinvest,receber:renderReceber};
+  const r={dashboard:renderDashboard,produtos:renderProdutos,simulador:renderSimulador,vendas:renderVendas,clientes:renderClientes,depoimentos:renderDepoimentos,compras:renderCompras,gastos:renderGastos,reinvest:renderReinvest,receber:renderReceber};
   document.getElementById('content').innerHTML=r[page]();
   if(page==='simulador') calcSimulador();
 }
@@ -535,7 +534,7 @@ function renderDashboard(){
   <div class="kpi-grid" style="margin-top:1rem">
     <div class="kpi"><div class="kpi-label">🔄 Reserva</div><div class="kpi-value">${money(reserva)}</div><div class="kpi-sub">Para novas joias</div></div>
     <div class="kpi"><div class="kpi-label">💰 Recebido</div><div class="kpi-value">${money(recebido)}</div><div class="kpi-sub">Vendas já pagas</div></div>
-    <div class="kpi"><div class="kpi-label">👥 Clientes</div><div class="kpi-value">${DATA.clientes.length}</div><div class="kpi-sub">${DATA.avisos.filter(a=>(a.status||'Aguardando')!=='Encerrado').length} aviso(s) ativo(s)</div></div>
+    <div class="kpi"><div class="kpi-label">👥 Clientes</div><div class="kpi-value">${DATA.clientes.length}</div><div class="kpi-sub">Clientes cadastrados</div></div>
     <div class="kpi"><div class="kpi-label">📦 Produtos</div><div class="kpi-value">${DATA.produtos.length}</div><div class="kpi-sub">Itens cadastrados</div></div>
   </div>
   <div class="card"><div class="card-header"><h3>Últimas vendas</h3><button class="btn btn-outline btn-sm" onclick="go('vendas')">Ver todas</button></div>
@@ -699,9 +698,9 @@ function modalVenda(){
       const saved=[]; for(let i=0;i<items.length;i++){ const snap=snaps[i]; if(!snap.exists) throw Object.assign(new Error(),{userMsg:'Produto não encontrado.'}); const pd=snap.data(), item=items[i]; if(Number(pd.estoque||0)<item.qtd) throw Object.assign(new Error(),{userMsg:`Estoque insuficiente para ${pd.nome}.`}); saved.push({...item,produtoNome:pd.nome,precoUnitario:item.preco,custo:Number(pd.custo||0)}); t.update(pref[i],{estoque:Number(pd.estoque||0)-item.qtd}); }
       const subtotal=saved.reduce((s,x)=>s+x.preco*x.qtd,0); const desconto=val('f-dtipo').startsWith('-')?round2(subtotal-valor):0, acrescimo=val('f-dtipo').startsWith('+')?round2(valor-subtotal):0;
       const recebidoDigitado=Math.max(0,+val('f-recebido')||0);
-      // Registrar somente o dinheiro efetivamente recebido.
-      // Campo vazio/zero não significa pagamento integral: significa que ainda não foi recebido.
-      const valorRecebido=Math.min(valor,recebidoDigitado);
+      // Em venda à vista, deixar o campo vazio/zero significa pagamento integral.
+      // Se informar um valor parcial, o saldo fica visível em 'A receber'.
+      const valorRecebido=n===1?(recebidoDigitado>0?Math.min(valor,recebidoDigitado):valor):recebidoDigitado;
       t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',itens:saved,produtoId:saved[0].produtoId,produtoNome:saved[0].produtoNome,qtd:saved.reduce((s,x)=>s+x.qtd,0),precoUnitario:saved[0].preco,custo:saved[0].custo,subtotal,desconto,acrescimo,valor,data,formaPagamento:val('f-forma'),valorRecebido,createdAt:TS()});
     });
     return true;
@@ -813,71 +812,6 @@ function delCompra(id){
     });
     return true;
   },{saveLabel:'Excluir',danger:true,okMsg:'Compra excluída'});
-}
-
-/* ---------- Mural de avisos para clientes ---------- */
-function avisoStatusBadge(status){
-  const cls=status==='Avisada'?'ok':status==='Chegou'?'warn':status==='Encerrado'?'':'info';
-  return `<span class="badge ${cls}">${esc(status||'Aguardando')}</span>`;
-}
-function avisoAtrasado(a){
-  return !!(a.dataPrevista && a.dataPrevista < today() && (a.status||'Aguardando')!=='Encerrado' && (a.status||'Aguardando')!=='Avisada');
-}
-function renderMural(){
-  const ativos=DATA.avisos.filter(a=>(a.status||'Aguardando')!=='Encerrado');
-  const esperando=ativos.filter(a=>(a.status||'Aguardando')==='Aguardando').length;
-  const chegou=ativos.filter(a=>a.status==='Chegou').length;
-  const avisar=ativos.filter(a=>a.status==='Avisada').length;
-  const atrasados=ativos.filter(avisoAtrasado).length;
-  const sorted=[...DATA.avisos].sort((a,b)=>{
-    const overdue=Number(avisoAtrasado(b))-Number(avisoAtrasado(a));
-    const rank={'Chegou':0,'Aguardando':1,'Avisada':2,'Encerrado':3};
-    return overdue || (rank[a.status||'Aguardando']??1)-(rank[b.status||'Aguardando']??1) || String(b.createdAt?.seconds||0).localeCompare(String(a.createdAt?.seconds||0));
-  });
-  return `<div class="notice-intro"><div><div class="notice-eyebrow">ZM PRATAS · RELACIONAMENTO</div><h2>Não deixe nenhuma cliente esperando 💙</h2><p>Guarde o que cada cliente procura, acompanhe as datas e registre quando entrar em contato.</p></div><button class="btn btn-primary" onclick="modalAviso()">+ Novo aviso</button></div>
-  <div class="notice-stats"><div class="card notice-stat"><span>⏳ Aguardando peça</span><strong>${esperando}</strong></div><div class="card notice-stat"><span>💎 Peça chegou</span><strong>${chegou}</strong></div><div class="card notice-stat"><span>💬 Já avisadas</span><strong>${avisar}</strong></div><div class="card notice-stat"><span>📅 Acompanhar atrasados</span><strong>${atrasados}</strong></div></div>
-  ${atrasados?`<div class="app-notice show">📌 Você tem ${atrasados} aviso(s) com data de acompanhamento vencida. Confira a lista abaixo.</div>`:''}
-  <div class="toolbar"><input class="search" id="mural-search" placeholder="Buscar cliente, telefone ou joia..." oninput="filterMural(this.value)"/><select class="search" id="mural-filter" onchange="filterMural(document.getElementById('mural-search').value)" style="width:210px"><option value="Todos">Todos os avisos</option><option>Aguardando</option><option>Chegou</option><option>Avisada</option><option>Encerrado</option><option value="Atrasados">Acompanhamento vencido</option></select></div>
-  <div class="notice-list" id="mural-list">${sorted.map(avisoCard).join('')||'<div class="card empty">Ainda não há avisos. Clique em “Novo aviso” para cadastrar a primeira cliente.</div>'}</div>`;
-}
-function avisoCard(a){
-  const c=byId('clientes',a.clienteId), nome=c?.nome||a.clienteNome||'Cliente';
-  const telOriginal=String(c?.telefone||a.telefone||'');
-  const tel=telOriginal.replace(/\D/g,'');
-  const status=a.status||'Aguardando', atrasado=avisoAtrasado(a);
-  const wa=tel?`https://wa.me/55${tel}?text=${encodeURIComponent(`Olá ${nome}! Passando para avisar sobre ${a.item||'a peça'} que você pediu para acompanhar na ZM Pratas. 💙`)}`:'';
-  const busca=(nome+' '+telOriginal+' '+(a.item||'')+' '+(a.obs||'')).toLowerCase();
-  return `<article class="card notice-card" data-search="${esc(busca)}" data-status="${esc(status)}" data-overdue="${atrasado?'sim':'nao'}"><div class="notice-gem">💍</div><div class="notice-main"><div class="notice-card-top"><h3>${esc(a.item||'Peça desejada')}</h3><div>${atrasado?'<span class="badge" style="background:#fee2e2;color:#991b1b;margin-right:5px">Acompanhamento vencido</span>':''}${avisoStatusBadge(status)}</div></div><div class="notice-client">${esc(nome)}${telOriginal?` · ${esc(telOriginal)}`:' · <span style="color:var(--danger)">Sem telefone cadastrado</span>'}</div>${a.obs?`<p class="notice-notes">${esc(a.obs)}</p>`:''}<div class="notice-meta">Solicitado em ${fmtDate(a.data||'')}${a.dataPrevista?' · acompanhar em '+fmtDate(a.dataPrevista):' · sem data de acompanhamento'}${a.ultimoContato?' · último contato em '+fmtDate(a.ultimoContato):''}</div><div class="notice-actions"><select aria-label="Status do aviso" onchange="setAvisoStatus('${a.id}',this.value)"><option ${status==='Aguardando'?'selected':''}>Aguardando</option><option ${status==='Chegou'?'selected':''}>Chegou</option><option ${status==='Avisada'?'selected':''}>Avisada</option><option ${status==='Encerrado'?'selected':''}>Encerrado</option></select>${wa?`<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="${wa}">Abrir WhatsApp</a>`:''}<button class="btn btn-outline btn-sm" onclick="registrarContatoAviso('${a.id}')">Registrar contato</button><button class="btn btn-outline btn-sm" onclick="modalAviso('${a.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="delDoc('avisos','${a.id}')">Excluir</button></div></div></article>`;
-}
-function filterMural(q=''){
-  const status=document.getElementById('mural-filter')?.value||'Todos';
-  document.querySelectorAll('#mural-list .notice-card').forEach(el=>{
-    const match=el.dataset.search.includes(String(q||'').toLowerCase());
-    const matchStatus=status==='Todos'||(status==='Atrasados'?el.dataset.overdue==='sim':el.dataset.status===status);
-    el.style.display=match&&matchStatus?'flex':'none';
-  });
-}
-function modalAviso(id){
-  const a=byId('avisos',id)||{};
-  if(!DATA.clientes.length){showNotice('Cadastre a cliente na tela Clientes antes de criar um aviso.','info');return;}
-  const oc=DATA.clientes.map(c=>`<option value="${c.id}" ${c.id===(a.clienteId||'')?'selected':''}>${esc(c.nome)}${c.telefone?' · '+esc(c.telefone):''}</option>`).join('');
-  const statuses=['Aguardando','Chegou','Avisada','Encerrado'].map(s=>`<option ${s===(a.status||'Aguardando')?'selected':''}>${s}</option>`).join('');
-  openModal(a.id?'Editar aviso':'Novo aviso para cliente',`<div class="field"><label>Cliente</label><select id="f-aviso-cli">${oc}</select></div><div class="field"><label>O que ela quer?</label><input id="f-aviso-item" value="${esc(a.item||'')}" placeholder="Ex.: anel de prata, aro 18"/></div><div class="row-2"><div class="field"><label>Data do pedido</label><input id="f-aviso-data" type="date" value="${a.data||today()}"/></div><div class="field"><label>Data para acompanhar (opcional)</label><input id="f-aviso-prev" type="date" value="${a.dataPrevista||''}"/></div></div><div class="field"><label>Observações</label><textarea id="f-aviso-obs" rows="3" placeholder="Modelo, tamanho, cor ou outro detalhe">${esc(a.obs||'')}</textarea></div><div class="field"><label>Status</label><select id="f-aviso-status">${statuses}</select></div><p class="modal-msg">Dica: defina uma data para acompanhar esse aviso. O mural vai destacar quando ela vencer.</p>`,async()=>{
-    const clienteId=val('f-aviso-cli'), item=val('f-aviso-item');
-    if(!clienteId||!item){modalError('Escolha a cliente e informe qual peça ela deseja.');return false;}
-    const c=byId('clientes',clienteId);
-    const payload={clienteId,clienteNome:c?.nome||'',telefone:c?.telefone||'',item,data:val('f-aviso-data')||today(),dataPrevista:val('f-aviso-prev'),obs:val('f-aviso-obs'),status:val('f-aviso-status')||'Aguardando',updatedAt:TS()};
-    if(a.id) await col('avisos').doc(a.id).set(payload,{merge:true}); else await col('avisos').add({...payload,createdAt:TS()});
-    return true;
-  },{okMsg:'Aviso salvo no mural'});
-}
-async function setAvisoStatus(id,status){
-  try{const patch={status,updatedAt:TS()};if(status==='Avisada')patch.ultimoContato=today();await col('avisos').doc(id).update(patch);const a=byId('avisos',id);if(a)Object.assign(a,patch);go('mural');toast('Status atualizado');}
-  catch(ex){showNotice(ex?.message||mapErr(ex.code),'error');go('mural');}
-}
-async function registrarContatoAviso(id){
-  try{const patch={ultimoContato:today(),updatedAt:TS()};await col('avisos').doc(id).update(patch);const a=byId('avisos',id);if(a)Object.assign(a,patch);go('mural');toast('Contato registrado');}
-  catch(ex){showNotice(ex?.message||mapErr(ex.code),'error');}
 }
 
 /* ---------- Contas a Receber ---------- */
