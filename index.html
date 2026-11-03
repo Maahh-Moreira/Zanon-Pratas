@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f4f7fb;--surface:#fff;--surface-2:#f8fafc;--ink:#0f172a;--muted:#5b6b82;--border:#e2e8f0;--blue-deep:#0a1628;--blue-dark:#0f2744;--blue-mid:#163a5f;--blue-accent:#3b82f6;--blue-soft:#dbeafe;--blue-50:#eff6ff;--success:#059669;--danger:#dc2626;--shadow:0 1px 3px rgba(15,39,68,.06),0 8px 24px rgba(15,39,68,.04);--radius:12px;--sidebar:240px}
 html.dark{--bg:#0b1220;--surface:#111827;--surface-2:#0f172a;--ink:#e5eefb;--muted:#94a3b8;--border:#1e293b;--blue-deep:#060d18;--blue-dark:#0b1a2e;--blue-mid:#12263f;--blue-soft:#1e3a5f;--blue-50:#132337;--shadow:0 1px 3px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25)}
@@ -279,6 +280,19 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
+
+// Supabase é usado SOMENTE para armazenar as fotos dos produtos.
+const ZM_SUPABASE_URL = 'https://ocdvclfiedycrzrycwdv.supabase.co';
+const ZM_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_8WB0DubSeilJrMEiuEPIZA_N7ZvBJ2-';
+const zmSupabaseStorage = window.supabase.createClient(ZM_SUPABASE_URL, ZM_SUPABASE_PUBLISHABLE_KEY, {
+  // Envia o token do Firebase ao Supabase. Requer habilitar Firebase em Supabase > Authentication > Third-Party Auth.
+  accessToken: async () => {
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) throw new Error('Você precisa estar logada para enviar fotos.');
+    return await currentUser.getIdToken();
+  }
+});
+
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 const THEME_KEY = 'zm_theme_v1';
 const NAMES = ['produtos','clientes','vendas','compras','gastos','reinvestimentos','avisos'];
@@ -493,6 +507,13 @@ const nomeProd=o=>{ const it=itensVenda(o); return it.length>1?it.map(x=>x.produ
 const custoVenda=v=>itensVenda(v).reduce((s,it)=>s+Number(it.custo??byId('produtos',it.produtoId)?.custo??0)*Number(it.qtd||0),0);
 
 const parcelasDe=v=>v.parcelas||[];
+// Cada parcela paga entra no relatório na data em que foi dada baixa.
+const recebimentosVenda=v=>{
+  const ps=parcelasDe(v);
+  if(ps.length) return ps.filter(p=>p.pago).map(p=>({data:p.dataPagamento||p.dataBaixa||v.data,valor:Number(p.valor||0)}));
+  const valor=recebidoVenda(v);
+  return valor>0?[{data:v.data,valor}]:[];
+};
 // O saldo a receber é o total da venda menos o que já entrou. Isso também contempla
 // vendas antigas/à vista com recebimento parcial, sem depender apenas de parcelas.
 const aReceber=v=>Math.max(0,round2(Number(v.valor||0)-recebidoVenda(v)));
@@ -591,14 +612,41 @@ function renderProdutos(){
 }
 async function uploadFotoProduto(file,produtoId){
   if(!file) return null;
-  if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
+  if(!file.type || !file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
   if(file.size>5*1024*1024) throw new Error('A foto deve ter no máximo 5 MB.');
-  const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg');
-  const path=`users/${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
-  const ref=storage.ref(path);
-  await ref.put(file,{contentType:file.type});
-  return {url:await ref.getDownloadURL(),path};
+  if(!window.supabase || !zmSupabaseStorage) throw new Error('A conexão do armazenamento de fotos não carregou.');
+  const ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg').replace('svg+xml','svg');
+  const path=`${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
+  const {error}=await zmSupabaseStorage.storage.from('catalogo-produtos').upload(path,file,{
+    contentType:file.type,
+    upsert:true,
+    cacheControl:'3600'
+  });
+  if(error) throw error;
+  const {data}=zmSupabaseStorage.storage.from('catalogo-produtos').getPublicUrl(path);
+  if(!data?.publicUrl) throw new Error('Não foi possível obter o endereço público da foto.');
+  return {url:data.publicUrl,path};
 }
+async function sincronizarCatalogoPublico(produtoId, produto){
+  if(!USER?.uid) throw new Error('Usuário não autenticado.');
+  const ref=db.collection('catalogo_publico').doc(`${USER.uid}_${produtoId}`);
+  if(produto.publicarCatalogo !== true){
+    const existente=await ref.get();
+    if(existente.exists) await ref.delete();
+    return;
+  }
+  await ref.set({
+    ownerUid: USER.uid,
+    produtoId,
+    nome: String(produto.nome||''),
+    sku: String(produto.sku||''),
+    cat: String(produto.cat||'Geral'),
+    preco: Number(produto.preco||0),
+    imagem_url: String(produto.foto||''),
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
 function modalProduto(id){
   const p=byId('produtos',id)||{};
   window.__produtoFotoFile=null; window.__removerFoto=false;
@@ -613,7 +661,11 @@ function modalProduto(id){
     <div class="row-2"><div class="field"><label>SKU / Código</label><input id="f-sku" value="${esc(p.sku||'')}" placeholder="Ex.: AN001"/></div><div class="field"><label>Categoria</label><input id="f-cat" value="${esc(p.cat||'')}"/></div></div>
     <div class="row-2"><div class="field"><label>Preço</label><input id="f-preco" type="number" step="0.01" min="0" value="${p.preco??''}"/></div>
     <div class="field"><label>Custo</label><input id="f-custo" type="number" step="0.01" min="0" value="${p.custo??''}"/></div></div>
-    <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>`,async()=>{
+    <div class="field"><label>Estoque</label><input id="f-est" type="number" min="0" value="${p.estoque??0}"/></div>
+    <label style="display:flex;align-items:flex-start;gap:.65rem;padding:.85rem;border:1px solid var(--border);border-radius:10px;margin-top:.35rem;cursor:pointer">
+      <input id="f-publicar-catalogo" type="checkbox" ${p.publicarCatalogo===true?'checked':''} style="margin-top:.2rem;width:17px;height:17px;flex-shrink:0"/>
+      <span><strong>Exibir no catálogo público</strong><span class="meta" style="display:block;margin-top:.2rem">Quando marcado, nome, categoria, preço, código e foto ficam visíveis no site público.</span></span>
+    </label>`,async()=>{
     const nome=val('f-nome'), precoTexto=val('f-preco'), preco=Number(precoTexto);
     if(!nome || !precoTexto || !Number.isFinite(preco) || preco<0){ modalError('Informe nome e preço.'); return false; }
     try{
@@ -622,7 +674,7 @@ function modalProduto(id){
       // Assim, se houver algum problema no Storage, o produto não é perdido.
       let foto=p.foto||'', fotoPath=p.fotoPath||'';
       if(window.__removerFoto){ foto=''; fotoPath=''; }
-      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,updatedAt:TS()};
+      const payload={nome,sku:val('f-sku'),preco,custo:Number(val('f-custo'))||0,estoque:Number(val('f-est'))||0,cat:val('f-cat')||'Geral',foto,fotoPath,publicarCatalogo:document.getElementById('f-publicar-catalogo').checked,updatedAt:TS()};
       if(!p.id) payload.createdAt=TS();
       if(!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'),{userMsg:'Sua sessão expirou. Faça login novamente.'});
       if(!db) throw Object.assign(new Error('Firestore não foi inicializado.'),{userMsg:'O Firebase Firestore não foi inicializado. Recarregue a página.'});
@@ -638,10 +690,25 @@ function modalProduto(id){
         try{
           const up=await uploadFotoProduto(window.__produtoFotoFile,produtoId);
           await produtoRef.set({foto:up.url,fotoPath:up.path,updatedAt:TS()},{merge:true});
+          foto=up.url; fotoPath=up.path; payload.foto=up.url; payload.fotoPath=up.path;
         }catch(photoErr){
-          console.error('Erro ao enviar foto:',photoErr);
-          toast('Produto salvo, mas a foto não foi enviada. Verifique o Firebase Storage.');
+          console.error('Erro ao enviar foto ao Supabase Storage:',photoErr);
+          const raw=String(photoErr?.message||photoErr||'Erro desconhecido');
+          let friendly='A foto não foi enviada ao Supabase. O produto foi salvo.';
+          if(/row-level security|violates row-level|permission denied|not authorized|unauthorized|JWT|token/i.test(raw)) friendly='O Supabase recusou a autorização. Ative a integração Firebase em Supabase → Authentication → Third-Party Auth e mantenha as políticas restritas ao bucket catalogo-produtos.';
+          else if(/bucket not found/i.test(raw)) friendly='O bucket catalogo-produtos não foi encontrado no Supabase.';
+          else if(/payload too large|maximum.*size|exceeded the maximum/i.test(raw)) friendly='A imagem excede o limite de tamanho permitido pelo Supabase.';
+          toast(friendly);
+          showNotice(friendly+' Detalhe técnico: '+raw,'error');
         }
+      }
+      // Sincroniza apenas os campos destinados ao catálogo público.
+      // Custo, estoque, fotoPath e demais dados internos nunca são publicados.
+      try{
+        await sincronizarCatalogoPublico(produtoId, payload);
+      }catch(publicErr){
+        console.error('Erro ao sincronizar catálogo público:', publicErr);
+        showNotice('Produto salvo, mas não foi possível atualizar o catálogo público. Confira as regras do Firestore.','error');
       }
       window.__produtoFotoFile=null; window.__removerFoto=false;
       return true;
@@ -684,16 +751,20 @@ function modalVenda(){
     <div class="field"><label>Cliente</label><select id="f-cli">${oc}</select></div>
     <div class="field"><label>Itens da venda</label><div id="sale-items" class="sales-items"></div><button type="button" class="btn btn-outline btn-sm" onclick="addSaleItem()">+ Adicionar produto</button></div>
     <div class="row-2"><div class="field"><label>Desconto / acréscimo</label><div style="display:flex;gap:.4rem"><input id="f-dsc" type="number" step="0.01" min="0" placeholder="0" oninput="calcSale()"/><select id="f-dtipo" onchange="calcSale()" style="width:96px;flex:none"><option value="-r">Desc. R$</option><option value="-p">Desc. %</option><option value="+r">Acrésc. R$</option><option value="+p">Acrésc. %</option></select></div></div><div class="field"><label>Total da venda</label><input id="f-val" type="number" step="0.01" min="0" readonly/></div></div>
-    <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div><div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option><option value="2">A prazo — 2 parcelas</option>${[3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">A prazo — ${n} parcelas</option>`).join('')}</select></div></div>
-    <div id="box-2x" style="display:none"><div class="row-2"><div class="field"><label>Vencimento da 2ª parcela</label><input id="f-venc2" type="date" value="${addDays(today(),30)}"/></div><div class="field"><label>1ª parcela (entrada)</label><select id="f-pago1"><option value="1">Já paga</option><option value="0">Pendente</option></select></div></div><p class="modal-msg">As parcelas seguintes vencem mensalmente.</p></div>
+    <div class="row-2"><div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div><div class="field"><label>Pagamento</label><select id="f-pag" onchange="updPag()"><option value="1">À vista</option><option value="prazo1">A prazo — 1 parcela</option><option value="2">A prazo — 2 parcelas</option>${[3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">A prazo — ${n} parcelas</option>`).join('')}</select></div></div>
+    <div id="box-2x" style="display:none"><div class="row-2"><div class="field"><label id="lbl-vencimento">Vencimento da 2ª parcela</label><input id="f-venc2" type="date" value="${addDays(today(),30)}"/></div><div class="field"><label id="lbl-pago1">1ª parcela (entrada)</label><select id="f-pago1"><option value="1">Já paga</option><option value="0">Pendente</option></select></div></div><p class="modal-msg" id="msg-parcelas">As parcelas seguintes vencem mensalmente.</p></div>
     <div class="row-2"><div class="field"><label>Forma de pagamento</label><select id="f-forma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select></div><div class="field"><label>Valor recebido / entrada</label><input id="f-recebido" type="number" step="0.01" min="0" value="0" oninput="calcTroco()"/></div></div>
     <div id="troco-box" class="modal-msg">Troco: <strong>R$ 0,00</strong></div>`,async()=>{
     const clienteId=val('f-cli'), data=val('f-data')||today(), valor=+val('f-val')||0, items=collectSaleItems();
     if(!clienteId||!items.length||!(valor>=0)){ modalError('Informe cliente, produto e valores.'); return false; }
-    const n=+val('f-pag')||1;
+    const tipoPagamento=val('f-pag'), prazoUma=tipoPagamento==='prazo1', n=prazoUma?1:(+tipoPagamento||1);
     const recebidoDigitado=Math.max(0,round2(+val('f-recebido')||0));
     let parcelas=null;
-    if(n>1){
+    if(prazoUma){
+      const paga=val('f-pago1')==='1';
+      if(recebidoDigitado>valor){ modalError('O valor recebido não pode ser maior que o total da venda.'); return false; }
+      parcelas=[{valor,pago:paga,venc:val('f-venc2')||addDays(data,30),dataPagamento:paga?data:null}];
+    }else if(n>1){
       const entradaPaga=val('f-pago1')==='1';
       if(recebidoDigitado>valor){ modalError('O valor recebido não pode ser maior que o total da venda.'); return false; }
       // Se a entrada já foi paga, a 1ª parcela usa o valor realmente recebido.
@@ -704,7 +775,7 @@ function modalVenda(){
       parcelas=Array.from({length:n},(_,i)=>({
         valor:i===0?entrada:(i===n-1?round2(restante-base*(qtdRestantes-1)):base),
         venc:i===0?data:addMonths(v2,i-1),
-        pago:i===0&&entradaPaga
+        pago:i===0&&entradaPaga,dataPagamento:i===0&&entradaPaga?data:null
       }));
     }
     const ids=items.map(x=>x.produtoId), pref=ids.map(id=>col('produtos').doc(id));
@@ -714,7 +785,7 @@ function modalVenda(){
       const subtotal=saved.reduce((s,x)=>s+x.preco*x.qtd,0); const desconto=val('f-dtipo').startsWith('-')?round2(subtotal-valor):0, acrescimo=val('f-dtipo').startsWith('+')?round2(valor-subtotal):0;
       // À vista, zero/vazio mantém a regra de pagamento integral; a prazo,
       // o recebido efetivo é calculado pelas parcelas marcadas como pagas.
-      const valorRecebido=n===1?(recebidoDigitado>0?Math.min(valor,recebidoDigitado):valor):round2(parcelas.filter(p=>p.pago).reduce((s,p)=>s+p.valor,0));
+      const valorRecebido=tipoPagamento==='1'?(recebidoDigitado>0?Math.min(valor,recebidoDigitado):valor):round2((parcelas||[]).filter(p=>p.pago).reduce((s,p)=>s+p.valor,0));
       t.set(col('vendas').doc(),{...(parcelas?{parcelas}:{}),clienteId,clienteNome:byId('clientes',clienteId)?.nome||'',itens:saved,produtoId:saved[0].produtoId,produtoNome:saved[0].produtoNome,qtd:saved.reduce((s,x)=>s+x.qtd,0),precoUnitario:saved[0].preco,custo:saved[0].custo,subtotal,desconto,acrescimo,valor,data,formaPagamento:val('f-forma'),valorRecebido,createdAt:TS()});
     });
     return true;
@@ -729,18 +800,29 @@ function changeSaleQty(i,q){ window.__saleItems[i].qtd=Math.max(1,parseInt(q)||1
 function removeSaleItem(i){ window.__saleItems.splice(i,1); renderSaleItems(); }
 function collectSaleItems(){ return window.__saleItems.filter(x=>x.produtoId).map(x=>({...x,qtd:Math.max(1,parseInt(x.qtd)||1),preco:Number(x.preco||0)})); }
 function calcSale(){ const items=collectSaleItems(), sub=items.reduce((s,x)=>s+x.preco*x.qtd,0), d=+val('f-dsc')||0, typ=val('f-dtipo'), adj=typ.endsWith('p')?sub*d/100:d, final=typ.startsWith('-')?Math.max(0,sub-Math.min(adj,sub)):sub+adj; const el=document.getElementById('f-val'); if(el)el.value=final.toFixed(2); calcTroco(); }
-function updPag(){ const b=document.getElementById('box-2x'); if(b)b.style.display=val('f-pag')!=='1'?'block':'none'; }
+function updPag(){
+  const tipo=val('f-pag'), b=document.getElementById('box-2x');
+  if(!b)return;
+  const prazoUma=tipo==='prazo1';
+  b.style.display=tipo!=='1'?'block':'none';
+  const venc=document.getElementById('lbl-vencimento'), pago=document.getElementById('lbl-pago1'), msg=document.getElementById('msg-parcelas');
+  if(venc)venc.textContent=prazoUma?'Data de vencimento':'Vencimento da 2ª parcela';
+  if(pago)pago.textContent=prazoUma?'Pagamento':'1ª parcela (entrada)';
+  if(msg)msg.textContent=prazoUma?'A venda ficará com uma única parcela, que poderá ser baixada na data em que você receber.':'As parcelas seguintes vencem mensalmente.';
+}
 function calcTroco(){ const b=document.getElementById('troco-box'); if(!b)return; const totalv=+val('f-val')||0, rec=+val('f-recebido')||0; b.innerHTML=rec>=totalv?`Troco: <strong>${money(rec-totalv)}</strong>`:`Falta: <strong>${money(totalv-rec)}</strong>`; }
 function modalParcelas(id){
   const v=byId('vendas',id); if(!v) return; const ps=parcelasDe(v);
-  openModal('Parcelas · '+esc(nomeCli(v)),`<p class="modal-msg" style="margin-bottom:.6rem">${esc(nomeProd(v))} · total ${money(v.valor)}. Confira os valores de cada parcela e marque as que já foram pagas.</p>`+ps.map((p,i)=>`<div style="display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:.6rem;align-items:center;padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.85rem"><label><input type="checkbox" id="pp-${i}" ${p.pago?'checked':''}/> ${i+1}ª parcela<br><span style="color:var(--muted);font-size:.72rem">Vence ${fmtDate(p.venc)}</span></label><div class="field" style="margin:0"><label>Valor (R$)</label><input id="pv-${i}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"/></div></div>`).join(''),async()=>{
-    const novo=ps.map((p,i)=>({...p,valor:round2(Math.max(0,Number(document.getElementById('pv-'+i).value)||0)),pago:document.getElementById('pp-'+i).checked}));
+  openModal('Parcelas · '+esc(nomeCli(v)),`<p class="modal-msg" style="margin-bottom:.6rem">${esc(nomeProd(v))} · total ${money(v.valor)}. Ao marcar uma parcela como paga, informe a data em que recebeu.</p>`+ps.map((p,i)=>`<div style="display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:.6rem;align-items:center;padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.85rem"><div><label><input type="checkbox" id="pp-${i}" ${p.pago?'checked':''} onchange="document.getElementById('pd-${i}').disabled=!this.checked"/> ${i+1}ª parcela</label><div class="field" style="margin:.35rem 0 0"><label>Data do recebimento</label><input id="pd-${i}" type="date" value="${p.dataPagamento||p.dataBaixa||((p.pago)?today():'')}" ${p.pago?'':'disabled'}/></div><span style="color:var(--muted);font-size:.72rem">Vencimento: ${fmtDate(p.venc)}</span></div><div class="field" style="margin:0"><label>Valor (R$)</label><input id="pv-${i}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"/></div></div>`).join(''),async()=>{
+    const novo=ps.map((p,i)=>{const pago=document.getElementById('pp-'+i).checked;const dataPagamento=document.getElementById('pd-'+i).value;return {...p,valor:round2(Math.max(0,Number(document.getElementById('pv-'+i).value)||0)),pago,dataPagamento:pago?(dataPagamento||today()):null};});
     const soma=round2(novo.reduce((s,p)=>s+p.valor,0));
     if(Math.abs(soma-Number(v.valor||0))>0.01){modalError(`A soma das parcelas (${money(soma)}) precisa ser igual ao total da venda (${money(v.valor)}).`);return false;}
+    if(novo.some(p=>p.pago&&!p.dataPagamento)){modalError('Informe a data em que cada parcela foi recebida.');return false;}
     await col('vendas').doc(id).update({parcelas:novo,valorRecebido:round2(novo.filter(p=>p.pago).reduce((s,p)=>s+p.valor,0))});
     return true;
   },{okMsg:'Parcelas atualizadas'});
 }
+
 function imprimirVenda(id){ const v=byId('vendas',id); if(!v)return; const c=byId('clientes',v.clienteId); const items=itensVenda(v); const root=document.getElementById('toast-root'); const old=document.getElementById('receipt-print'); if(old)old.remove(); const el=document.createElement('div'); el.id='receipt-print'; el.className='receipt-print'; el.innerHTML=`<h1>ZM Pratas</h1><div class="center">Comprovante de venda</div><div class="center">${fmtDate(v.data)} · ${esc(nomeCli(v))}</div><table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>${items.map(i=>`<tr><td>${esc(i.produtoNome||byId('produtos',i.produtoId)?.nome||'Produto')}</td><td>${i.qtd}</td><td>${money(i.preco*i.qtd)}</td></tr>`).join('')}</tbody></table><div class="total">Total: ${money(v.valor)}</div><div>Pagamento: ${esc(v.formaPagamento||'—')}</div><div>Recebido: ${money(v.valorRecebido||recebidoVenda(v))}</div><div>Cliente: ${esc(c?.telefone||'')}</div>`; document.body.appendChild(el); window.print(); setTimeout(()=>el.remove(),800); }
 function delVenda(id){
   openModal('Excluir venda','<p class="modal-msg">Excluir e devolver todos os produtos ao estoque?</p>',async()=>{ const v=byId('vendas',id); if(!v)return true; await db.runTransaction(async t=>{ for(const it of itensVenda(v)){ const pref=col('produtos').doc(it.produtoId); const snap=await t.get(pref); if(snap.exists)t.update(pref,{estoque:Number(snap.data().estoque||0)+Number(it.qtd||0)}); } t.delete(col('vendas').doc(id)); }); return true; },{saveLabel:'Excluir',danger:true,okMsg:'Venda excluída'});
@@ -925,9 +1007,10 @@ function delReinvestimento(id){
 }
 function renderReinvest(){
   const [de,ate]=rangeDates(), inR=l=>l.filter(x=>(x.data||'')>=de&&(x.data||'')<=ate);
-  const vs=inR(DATA.vendas).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+  const pagamentosPeriodo=DATA.vendas.flatMap(v=>recebimentosVenda(v).filter(r=>(r.data||'')>=de&&(r.data||'')<=ate).map(r=>({...r,venda:v})));
+  const vs=DATA.vendas.filter(v=>pagamentosPeriodo.some(r=>r.venda.id===v.id)).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
   const rs=inR(DATA.reinvestimentos).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
-  const vend=vs.reduce((s,v)=>s+recebidoVenda(v),0), custo=vs.reduce((s,v)=>{const totalVenda=Number(v.valor||0); const recebido=recebidoVenda(v); const proporcao=totalVenda>0?Math.min(1,recebido/totalVenda):0; return s+custoVenda(v)*proporcao;},0), gas=total(inR(DATA.gastos)), comp=total(inR(DATA.compras));
+  const vend=round2(pagamentosPeriodo.reduce((s,r)=>s+r.valor,0)), custo=pagamentosPeriodo.reduce((s,r)=>{const totalVenda=Number(r.venda.valor||0);const proporcao=totalVenda>0?Math.min(1,r.valor/totalVenda):0;return s+custoVenda(r.venda)*proporcao;},0), gas=total(inR(DATA.gastos)), comp=total(inR(DATA.compras));
   const lucroBruto=vend-custo, lucroLiquido=lucroBruto-gas;
   const retir=total(rs,'retirada'), reinv=total(rs,'reinvestimento');
   const rec=DATA.vendas.reduce((s,v)=>s+recebidoVenda(v),0), ct=total(DATA.compras), gt=total(DATA.gastos);
@@ -976,7 +1059,7 @@ function renderReinvest(){
     ${rs.map(r=>`<tr><td>${fmtDate(r.data)}</td><td>${r.retirada>0?`<strong style="color:var(--danger)">${money(r.retirada)}</strong>`:'—'}</td><td>${r.reinvestimento>0?`<strong style="color:var(--success)">${money(r.reinvestimento)}</strong>`:'—'}</td><td>${esc(r.obs||'—')}</td><td><button class="btn btn-danger btn-sm" onclick="delReinvestimento('${r.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhuma retirada ou reinvestimento registrado no período</td></tr>'}
   </tbody></table></div></div>
   <div class="card"><div class="card-header"><h3>Vendas e recebimentos do período</h3></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Recebido</th><th>Custo proporcional</th><th>Lucro estimado</th></tr></thead><tbody>
-  ${vs.map(v=>{const recebido=recebidoVenda(v),totalVenda=Number(v.valor||0),proporcao=totalVenda>0?Math.min(1,recebido/totalVenda):0,c=custoVenda(v)*proporcao,l=recebido-c;return `<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(recebido)}</td><td>${money(c)}</td><td><strong style="color:${l<0?'var(--danger)':'var(--success)'}">${money(l)}</strong></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Nenhuma venda no período</td></tr>'}
+  ${pagamentosPeriodo.map(r=>{const v=r.venda,totalVenda=Number(v.valor||0),proporcao=totalVenda>0?Math.min(1,r.valor/totalVenda):0,c=custoVenda(v)*proporcao,l=r.valor-c;return `<tr><td>${fmtDate(r.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(r.valor)}</td><td>${money(c)}</td><td><strong style="color:${l<0?'var(--danger)':'var(--success)'}">${money(l)}</strong></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Nenhum recebimento no período</td></tr>'}
   </tbody></table></div></div>`;
 }
 // Aviso ao registrar compra: compara com o valor disponível para novas compras.
