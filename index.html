@@ -3193,6 +3193,43 @@
         grid-template-columns: 1fr
       }
     }
+
+    .product-img img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      object-fit: cover;
+      object-position: center
+    }
+
+    .product-photo-fallback {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      font-size: 1.8rem
+    }
+
+    /* Acesso restrito */
+    .auth-access-note {
+      margin-top: 1.2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: .78rem;
+      line-height: 1.6;
+      font-weight: 600;
+      color: var(--ink)
+    }
+
+    .auth-access-note span {
+      display: block;
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: .25rem
+    }
   </style>
 </head>
 
@@ -3224,35 +3261,8 @@
           <button type="submit" class="btn-auth" id="btn-login">Entrar</button>
         </form>
         <p class="auth-switch"><a onclick="resetPass()">Esqueci minha senha</a></p>
-        <p class="auth-switch">Não tem conta? <a onclick="showRegister()">Criar conta</a></p>
-      </div>
-      <div class="auth-card hidden" id="register-card">
-        <div class="brand">ZM Pratas</div>
-        <h1>Criar conta</h1>
-        <p class="sub">Conta salva no Firebase</p>
-        <div class="auth-error" id="reg-error"></div>
-        <form onsubmit="return doRegister(event)">
-          <div class="field"><label for="reg-name">Nome completo</label><input id="reg-name" autocomplete="name"
-              required /></div>
-          <div class="field"><label for="reg-email">E-mail</label><input id="reg-email" type="email"
-              autocomplete="email" required /></div>
-          <div class="field"><label for="reg-pass">Senha</label>
-            <div class="pass-wrap"><input id="reg-pass" type="password" autocomplete="new-password" minlength="6"
-                required />
-              <button type="button" class="pass-toggle" data-target="reg-pass"
-                onclick="togglePass(this)">Mostrar</button>
-            </div>
-          </div>
-          <div class="field"><label for="reg-confirm">Confirmar senha</label>
-            <div class="pass-wrap"><input id="reg-confirm" type="password" autocomplete="new-password" minlength="6"
-                required />
-              <button type="button" class="pass-toggle" data-target="reg-confirm"
-                onclick="togglePass(this)">Mostrar</button>
-            </div>
-          </div>
-          <button type="submit" class="btn-auth" id="btn-reg">Criar conta</button>
-        </form>
-        <p class="auth-switch">Já tem conta? <a onclick="showLogin()">Entrar</a></p>
+        <p class="auth-access-note">Acesso exclusivo da ZM Pratas.<span>Precisa de ajuda para entrar? Entre em contato
+            com a responsável pelo sistema.</span></p>
       </div>
     </main>
   </div>
@@ -3350,9 +3360,7 @@
     const round2 = n => Math.round(n * 100) / 100;
     function mapErr(code) {
       return ({
-        'auth/email-already-in-use': 'Este e-mail já está cadastrado.',
         'auth/invalid-email': 'E-mail inválido.',
-        'auth/weak-password': 'Senha muito fraca (mín. 6 caracteres).',
         'auth/user-not-found': 'E-mail ou senha incorretos.',
         'auth/wrong-password': 'E-mail ou senha incorretos.',
         'auth/invalid-credential': 'E-mail ou senha incorretos.',
@@ -3363,24 +3371,9 @@
     }
 
     function togglePass(btn) {const i = document.getElementById(btn.dataset.target); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; btn.textContent = show ? 'Ocultar' : 'Mostrar';}
-    function showLogin() {login_card(true); document.getElementById('login-error').classList.remove('show');}
-    function showRegister() {login_card(false); document.getElementById('reg-error').classList.remove('show');}
-    function login_card(l) {document.getElementById('login-card').classList.toggle('hidden', !l); document.getElementById('register-card').classList.toggle('hidden', l);}
+    function showLogin() {document.getElementById('login-error').classList.remove('show');}
     function toggleTheme() {const d = document.documentElement.classList.toggle('dark'); localStorage.setItem(THEME_KEY, d ? 'dark' : 'light'); document.getElementById('theme-btn').textContent = d ? '☀' : '☾';}
 
-    async function doRegister(e) {
-      e.preventDefault();
-      const err = document.getElementById('reg-error'); err.classList.remove('show');
-      const name = val('reg-name'), email = val('reg-email').toLowerCase(), pass = val('reg-pass');
-      if (pass !== val('reg-confirm')) {err.textContent = 'As senhas não coincidem.'; err.classList.add('show'); return false;}
-      const btn = document.getElementById('btn-reg'); btn.disabled = true;
-      try {
-        const cred = await auth.createUserWithEmailAndPassword(email, pass);
-        await cred.user.updateProfile({displayName: name});
-        await db.collection('users').doc(cred.user.uid).set({name, email, createdAt: TS()}, {merge: true});
-      } catch (ex) {err.textContent = mapErr(ex.code); err.classList.add('show');}
-      btn.disabled = false; return false;
-    }
     async function doLogin(e) {
       e.preventDefault();
       const err = document.getElementById('login-error'); err.classList.remove('show', 'ok');
@@ -3662,10 +3655,26 @@
       set('sim-nota', lucro < 0 ? 'Atenção: neste preço, o valor recebido após a taxa fica abaixo do custo estimado.' : 'Simulação apenas: nada será salvo no financeiro, nas vendas ou no estoque.');
     }
 
+    function fotoProdutoUrl(produto) {
+      return [produto?.foto, produto?.imagem_url, produto?.imagemUrl, produto?.fotoUrl, produto?.image_url]
+        .find(url => typeof url === 'string' && url.trim())?.trim() || '';
+    }
+    function falhaImagemProduto(img) {
+      img.hidden = true;
+      const container = img.closest('.product-img, .photo-preview');
+      if (container) {
+        container.classList.remove('has-photo');
+        const fallback = document.createElement('span');
+        fallback.className = 'product-photo-fallback';
+        fallback.textContent = '💎';
+        fallback.setAttribute('aria-label', 'Imagem indisponível');
+        container.appendChild(fallback);
+      }
+    }
     function renderProdutos() {
       return `<div class="toolbar"><div><div style="font-size:.75rem;color:var(--muted);margin-bottom:.25rem">Catálogo</div><strong style="font-size:1.05rem">${DATA.produtos.length} produto(s)</strong></div><div style="display:flex;gap:.55rem;flex-wrap:wrap;align-items:center"><input class="search" placeholder="🔎 Buscar nome, SKU ou categoria..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div></div>
   <div class="product-grid" id="prod-grid">${DATA.produtos.map(p => `<div class="product-card" data-q="${esc((p.nome + ' ' + (p.sku || '') + ' ' + (p.cat || '')).toLowerCase())}">
-    <div class="product-body"><div class="product-img ${p.foto ? 'has-photo' : ''}">${p.foto ? `<img src="${esc(p.foto)}" alt="${esc(p.nome)}"/>` : '💎'}</div><div class="product-info"><div class="meta" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${esc(p.cat || 'Geral')}</div><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
+    <div class="product-body"><div class="product-img ${fotoProdutoUrl(p) ? 'has-photo' : ''}">${fotoProdutoUrl(p) ? `<img src="${esc(fotoProdutoUrl(p))}" alt="${esc(p.nome)}" loading="lazy" decoding="async" onerror="falhaImagemProduto(this)"/>` : '💎'}</div><div class="product-info"><div class="meta" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${esc(p.cat || 'Geral')}</div><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
     <div class="meta">${p.sku ? `SKU ${esc(p.sku)} · ` : ''}<strong>${p.estoque}</strong> em estoque</div></div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">✏️ Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('') || '<div class="empty">Nenhum produto cadastrado. Clique em “+ Novo produto” para começar.</div>'}</div>`;
     }
@@ -3710,7 +3719,7 @@
       const p = byId('produtos', id) || {};
       window.__produtoFotoFile = null; window.__removerFoto = false;
       openModal(p.id ? 'Editar produto' : 'Novo produto', `
-    <div id="foto-preview" class="photo-preview">${p.foto ? `<img src="${esc(p.foto)}"/>` : '📷 Sem imagem'}</div>
+    <div id="foto-preview" class="photo-preview">${fotoProdutoUrl(p) ? `<img src="${esc(fotoProdutoUrl(p))}" alt="Imagem atual do produto" onerror="falhaImagemProduto(this)"/>` : '📷 Sem imagem'}</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
       <label class="btn btn-outline btn-sm" style="cursor:pointer">📷 Escolher foto<input id="f-foto" type="file" accept="image/*" style="display:none" onchange="previewProdutoFoto(this)"/></label>
       <button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">🗑️ Retirar imagem</button>
@@ -3729,7 +3738,7 @@
         if (!nome || !precoTexto || !Number.isFinite(preco) || preco < 0) {modalError('Informe nome e preço.'); return false;}
         try {
           let produtoId = p.id || col('produtos').doc().id;
-          let foto = p.foto || '', fotoPath = p.fotoPath || '';
+          let foto = fotoProdutoUrl(p), fotoPath = p.fotoPath || '';
           if (window.__removerFoto) {foto = ''; fotoPath = '';}
           const payload = {nome, sku: val('f-sku'), preco, custo: Number(val('f-custo')) || 0, estoque: Number(val('f-est')) || 0, cat: val('f-cat') || 'Geral', foto, fotoPath, publicarCatalogo: document.getElementById('f-publicar-catalogo').checked, updatedAt: TS()};
           if (!p.id) payload.createdAt = TS();
