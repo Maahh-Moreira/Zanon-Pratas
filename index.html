@@ -632,6 +632,17 @@
       background: var(--surface-2)
     }
 
+    .product-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block
+    }
+
+    .product-img.has-photo {
+      background: var(--surface-2)
+    }
+
     .sales-items {
       display: flex;
       flex-direction: column;
@@ -744,7 +755,7 @@
     }
 
     @media print {
-      body>*:not(.receipt-print) {
+      body>* {
         display: none !important
       }
 
@@ -976,6 +987,7 @@
       margin-top: .15rem
     }
 
+    /* ---------- ZM Pratas Visual 2.0 ---------- */
     .sidebar {
       box-shadow: 10px 0 35px rgba(5, 18, 38, .10)
     }
@@ -1301,6 +1313,12 @@
 
       .kpi-grid {
         grid-template-columns: repeat(2, 1fr)
+      }
+    }
+
+    @media(max-width:1100px) {
+      .kpi-grid {
+        grid-template-columns: 1fr 1fr
       }
     }
 
@@ -1681,1555 +1699,6 @@
         flex: 1
       }
     }
-
-
-    /* Layout, legibilidade e acessibilidade */
-    .sidebar-nav {
-      min-height: 0;
-      overflow-y: auto;
-      scrollbar-width: thin
-    }
-
-    .sidebar-footer {
-      flex-shrink: 0
-    }
-
-    .field textarea {
-      display: block;
-      width: 100%;
-      min-height: 96px;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      background: var(--surface-2);
-      color: var(--ink);
-      resize: vertical
-    }
-
-    .field textarea:focus,
-    .search:focus {
-      outline: none;
-      border-color: var(--blue-accent);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, .15)
-    }
-
-    :where(button, a, input, select, textarea):focus-visible {
-      outline: 2px solid var(--blue-accent);
-      outline-offset: 2px
-    }
-
-    button:disabled {
-      opacity: .55;
-      cursor: not-allowed
-    }
-
-    .card-header,
-    .toolbar,
-    .notice-card-top {
-      gap: .65rem;
-      min-width: 0
-    }
-
-    .card-header h3,
-    .notice-main,
-    .kpi-value {
-      overflow-wrap: anywhere
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .35rem
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      padding: .25rem .55rem;
-      border-radius: 999px;
-      background: var(--blue-50);
-      color: var(--blue-mid);
-      font-size: .72rem;
-      font-weight: 600
-    }
-
-    .pill-green {
-      background: #d1fae5;
-      color: #065f46
-    }
-
-    .modal-header {
-      align-items: center;
-      gap: 1rem
-    }
-
-    .modal-footer {
-      flex-wrap: wrap
-    }
-
-    .modal-overlay {
-      overscroll-behavior: contain
-    }
-
-    @media(max-width:820px) {
-      .sidebar-nav {
-        flex: 1;
-        min-width: 0;
-        min-height: 0;
-        overflow-x: auto;
-        overflow-y: hidden;
-        scrollbar-width: thin
-      }
-
-      .sidebar {
-        padding-bottom: env(safe-area-inset-bottom);
-        height: calc(70px + env(safe-area-inset-bottom))
-      }
-
-      .main {
-        padding-bottom: calc(70px + env(safe-area-inset-bottom))
-      }
-
-      .modal {
-        max-height: calc(92dvh - env(safe-area-inset-bottom))
-      }
-
-      .modal-overlay {
-        padding-bottom: env(safe-area-inset-bottom)
-      }
-
-      .notice-card-top {
-        flex-wrap: wrap
-      }
-    }
-
-    @media(max-width:480px) {
-      .topbar::after {
-        display: none
-      }
-
-      .kpi-value {
-        font-size: clamp(1rem, 4.4vw, 1.3rem)
-      }
-
-      .hero-value {
-        overflow-wrap: anywhere
-      }
-
-      .toolbar>div {
-        width: 100%;
-        min-width: 0
-      }
-
-      .toolbar>div>.search {
-        flex: 1;
-        min-width: 0
-      }
-
-      .notice-card {
-        min-width: 0
-      }
-
-      .modal-body {
-        padding: 1rem
-      }
-
-      .modal-footer .btn {
-        flex: 1
-      }
-
-      .sale-item {
-        grid-template-columns: minmax(0, 1fr) 72px 36px
-      }
-
-      .sale-item .field:nth-child(3) {
-        grid-column: 1/3;
-        grid-row: 2
-      }
-
-      .sale-item>button {
-        grid-column: 3;
-        grid-row: 1/3;
-        align-self: center
-      }
-    }
-
-    @media(prefers-reduced-motion:reduce) {
-
-      .btn,
-      .kpi,
-      .product-card,
-      .nav-item {
-        transition: none !important
-      }
-
-      .btn:hover,
-      .kpi:hover,
-      .product-card:hover,
-      .nav-item:hover {
-        transform: none !important
-      }
-    }
-
-    /* Simulador de lucro */
-    .simulator {
-      width: 100%;
-      max-width: 1000px;
-      margin: 0 auto 2rem
-    }
-
-    .sim-intro {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.5rem;
-      margin-bottom: 1.3rem;
-      padding: 1.55rem 1.8rem;
-      border-radius: 16px;
-      color: #fff;
-      background: linear-gradient(120deg, #0d213c, #173f68);
-      overflow: hidden
-    }
-
-    .sim-eyebrow {
-      display: block;
-      font-size: .67rem;
-      font-weight: 700;
-      letter-spacing: .14em;
-      text-transform: uppercase
-    }
-
-    .sim-intro .sim-eyebrow {
-      color: #a9c7ee
-    }
-
-    .sim-intro h3 {
-      font-family: 'Cormorant Garamond', serif;
-      font-weight: 500;
-      font-size: 2rem;
-      line-height: 1.1;
-      margin: .55rem 0 .35rem
-    }
-
-    .sim-intro p {
-      color: #d7e6f7;
-      font-size: .82rem;
-      line-height: 1.6;
-      max-width: 540px
-    }
-
-    .sim-intro-icon {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 5rem;
-      line-height: 1;
-      color: rgba(191, 219, 254, .28);
-      flex-shrink: 0
-    }
-
-    .sim-panel {
-      overflow: hidden;
-      margin-bottom: 1.4rem
-    }
-
-    .sim-section {
-      padding: 1.45rem 1.65rem
-    }
-
-    .sim-section+.sim-section {
-      border-top: 1px solid var(--border)
-    }
-
-    .sim-section-heading {
-      display: flex;
-      align-items: center;
-      gap: .8rem;
-      margin-bottom: 1.15rem
-    }
-
-    .sim-step {
-      display: grid;
-      place-items: center;
-      width: 34px;
-      height: 34px;
-      flex: 0 0 34px;
-      border-radius: 10px;
-      background: var(--blue-50);
-      color: var(--blue-mid);
-      font-size: .75rem;
-      font-weight: 700
-    }
-
-    html.dark .sim-step {
-      color: #93c5fd
-    }
-
-    .sim-section-heading h4 {
-      font-size: .9rem;
-      font-weight: 700;
-      color: var(--ink);
-      margin-bottom: .2rem
-    }
-
-    .sim-section-heading p {
-      font-size: .74rem;
-      line-height: 1.45;
-      color: var(--muted)
-    }
-
-    .sim-fields {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      column-gap: 1.1rem;
-      row-gap: 1rem
-    }
-
-    .sim-field {
-      margin: 0;
-      min-width: 0
-    }
-
-    .sim-field label {
-      display: block;
-      font-size: .76rem;
-      font-weight: 600;
-      color: var(--ink);
-      margin-bottom: .45rem;
-      line-height: 1.4
-    }
-
-    .sim-field input,
-    .sim-field select {
-      display: block;
-      width: 100%;
-      height: 46px;
-      padding: 0 .85rem;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      color: var(--ink);
-      font-size: .88rem;
-      min-width: 0;
-      outline: none
-    }
-
-    .sim-field input:focus,
-    .sim-field select:focus {
-      border-color: var(--blue-accent);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, .14)
-    }
-
-    .sim-field input[readonly] {
-      background: var(--blue-50);
-      color: var(--blue-mid);
-      font-weight: 600;
-      cursor: default
-    }
-
-    html.dark .sim-field input[readonly] {
-      color: #bfdbfe
-    }
-
-    .sim-help {
-      display: block;
-      margin-top: .4rem;
-      font-size: .7rem;
-      color: var(--muted)
-    }
-
-    .sim-results-heading {
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: .75rem;
-      margin: 0 0 .9rem
-    }
-
-    .sim-results-heading .sim-eyebrow {
-      color: var(--muted);
-      font-size: .62rem
-    }
-
-    .sim-results-heading h4 {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.55rem;
-      font-weight: 600;
-      margin-top: .15rem
-    }
-
-    .sim-live {
-      display: flex;
-      align-items: center;
-      gap: .4rem;
-      font-size: .68rem;
-      color: var(--muted);
-      white-space: nowrap
-    }
-
-    .sim-live span {
-      width: 7px;
-      height: 7px;
-      background: var(--success);
-      border-radius: 50%
-    }
-
-    .sim-results {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 1rem
-    }
-
-    .sim-result {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: .45rem;
-      min-width: 0;
-      min-height: 154px;
-      padding: 1.35rem 1.5rem;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--surface);
-      box-shadow: var(--shadow)
-    }
-
-    .sim-result-label {
-      font-size: .7rem;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--muted)
-    }
-
-    .sim-result strong {
-      font-size: clamp(1.55rem, 2.7vw, 2.1rem);
-      line-height: 1.2;
-      letter-spacing: -.03em;
-      overflow-wrap: anywhere;
-      color: var(--ink)
-    }
-
-    .sim-result-detail {
-      font-size: .73rem;
-      color: var(--muted);
-      line-height: 1.45
-    }
-
-    .sim-result-profit {
-      border-color: #b9ded1;
-      background: linear-gradient(135deg, var(--surface), #f1faf6)
-    }
-
-    html.dark .sim-result-profit {
-      border-color: #245d4a;
-      background: linear-gradient(135deg, var(--surface), #102c26)
-    }
-
-    .sim-result-profit strong {
-      color: var(--success)
-    }
-
-    .sim-notice {
-      margin-top: 1rem;
-      font-size: .76rem;
-      line-height: 1.6;
-      color: var(--muted);
-      padding: .75rem .9rem;
-      border-radius: 9px;
-      border: 1px solid var(--border);
-      background: var(--surface)
-    }
-
-    .sim-empty {
-      padding: 1.5rem
-    }
-
-    .sim-empty h3 {
-      font-size: 1.1rem;
-      margin-bottom: .6rem
-    }
-
-    .sim-empty p {
-      font-size: .85rem;
-      line-height: 1.5;
-      color: var(--muted);
-      margin-bottom: 1rem
-    }
-
-    @media(max-width:650px) {
-      .sim-intro {
-        padding: 1.25rem;
-        gap: .5rem
-      }
-
-      .sim-intro h3 {
-        font-size: 1.7rem
-      }
-
-      .sim-intro-icon {
-        font-size: 3rem
-      }
-
-      .sim-section {
-        padding: 1.2rem 1rem
-      }
-
-      .sim-fields {
-        grid-template-columns: 1fr;
-        row-gap: .95rem
-      }
-
-      .sim-results {
-        grid-template-columns: 1fr;
-        gap: .75rem
-      }
-
-      .sim-result {
-        min-height: 125px;
-        padding: 1.15rem
-      }
-
-      .sim-results-heading {
-        align-items: flex-start
-      }
-
-      .sim-live {
-        font-size: .6rem
-      }
-
-      .sim-results-heading h4 {
-        font-size: 1.4rem
-      }
-    }
-
-    @media(max-width:370px) {
-      .sim-intro-icon {
-        display: none
-      }
-
-      .sim-live {
-        white-space: normal;
-        max-width: 100px;
-        text-align: right
-      }
-    }
-
-    /* Identidade e componentes compartilhados */
-    :root {
-      --radius: 15px;
-      --shadow: 0 3px 16px rgba(15, 39, 68, .035), 0 14px 35px rgba(15, 39, 68, .035)
-    }
-
-    html {
-      scroll-behavior: smooth
-    }
-
-    body {
-      font-size: 14px
-    }
-
-    #app {
-      background: var(--bg)
-    }
-
-    .sidebar {
-      background: linear-gradient(180deg, #0b192e 0%, #081526 65%, #091a30 100%);
-      border-right: 1px solid rgba(147, 197, 253, .1)
-    }
-
-    .sidebar-brand {
-      font-size: 1.2rem;
-      min-height: 80px;
-      letter-spacing: .2em
-    }
-
-    .sidebar-brand::after {
-      top: 3.28rem
-    }
-
-    .sidebar-nav {
-      gap: .25rem;
-      padding: 1.05rem .75rem
-    }
-
-    .nav-group-title {
-      padding: .95rem .8rem .3rem;
-      color: rgba(191, 219, 254, .48);
-      font-size: .61rem
-    }
-
-    .nav-item {
-      border-radius: 11px;
-      padding: .74rem .85rem;
-      font-size: .79rem;
-      color: #bdcce0;
-      letter-spacing: .005em
-    }
-
-    .nav-item .ico {
-      font-size: 1rem;
-      color: #afc4df
-    }
-
-    .nav-item:hover {
-      transform: none;
-      background: rgba(147, 197, 253, .09);
-      color: #fff
-    }
-
-    .nav-item.active {
-      background: linear-gradient(115deg, #214b80, #2e609a);
-      border-color: rgba(147, 197, 253, .25);
-      box-shadow: inset 3px 0 #93c5fd, 0 5px 14px rgba(0, 0, 0, .13)
-    }
-
-    .nav-item.active .ico {
-      color: #fff
-    }
-
-    .sidebar-footer {
-      background: rgba(0, 0, 0, .08);
-      padding: 1.15rem
-    }
-
-    .sidebar-footer button {
-      transition: background .15s ease
-    }
-
-    .sidebar-footer button:hover {
-      background: rgba(255, 255, 255, .1)
-    }
-
-    .theme-btn {
-      transition: background .18s
-    }
-
-    .theme-btn:hover {
-      background: rgba(255, 255, 255, .1)
-    }
-
-    .main {
-      min-width: 0
-    }
-
-    .topbar {
-      height: 70px;
-      padding: 0 clamp(1rem, 2.1vw, 2.25rem);
-      background: var(--surface);
-      box-shadow: none
-    }
-
-    .topbar h2 {
-      font-size: 1.65rem;
-      color: var(--ink)
-    }
-
-    .content {
-      max-width: 1500px;
-      padding: clamp(1rem, 2vw, 2rem) clamp(.9rem, 2vw, 2rem) 3rem
-    }
-
-    .topbar::after {
-      letter-spacing: .22em
-    }
-
-    .page-intro {
-      position: relative;
-      isolation: isolate;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      border-radius: 17px;
-      background: linear-gradient(120deg, #0d213c 0%, #163e67 80%, #235581 100%);
-      padding: 1.6rem 1.8rem;
-      margin-bottom: 1.35rem;
-      color: #fff;
-      box-shadow: 0 10px 26px rgba(10, 31, 57, .11)
-    }
-
-    .page-intro::before {
-      content: '';
-      position: absolute;
-      z-index: -1;
-      width: 240px;
-      height: 240px;
-      right: -85px;
-      top: -140px;
-      border: 1px solid rgba(220, 235, 255, .15);
-      border-radius: 50%;
-      box-shadow: 0 0 0 45px rgba(255, 255, 255, .025), 0 0 0 90px rgba(255, 255, 255, .018)
-    }
-
-    .page-intro-kicker {
-      display: block;
-      font-size: .64rem;
-      font-weight: 700;
-      letter-spacing: .16em;
-      text-transform: uppercase;
-      color: #afcbec;
-      margin-bottom: .38rem
-    }
-
-    .page-intro h3 {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(1.7rem, 2.8vw, 2.15rem);
-      font-weight: 500;
-      line-height: 1.1;
-      letter-spacing: .01em
-    }
-
-    .page-intro p {
-      font-size: .8rem;
-      line-height: 1.6;
-      color: #d8e7f8;
-      margin-top: .48rem;
-      max-width: 620px
-    }
-
-    .page-intro-mark {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 4.7rem;
-      font-weight: 400;
-      line-height: 1;
-      color: rgba(201, 226, 255, .24);
-      flex-shrink: 0
-    }
-
-    .card {
-      border: 1px solid var(--border);
-      border-radius: 15px;
-      box-shadow: var(--shadow);
-      margin-bottom: 1.2rem;
-      background: var(--surface)
-    }
-
-    .card-header {
-      padding: 1.12rem 1.35rem;
-      background: var(--surface);
-      gap: .85rem
-    }
-
-    .card-header h3 {
-      font-size: .9rem;
-      line-height: 1.45;
-      font-weight: 700;
-      letter-spacing: .005em
-    }
-
-    .card-header .meta {
-      line-height: 1.4
-    }
-
-    .kpi-grid {
-      gap: .9rem;
-      margin-bottom: 1.2rem
-    }
-
-    .kpi {
-      min-width: 0;
-      padding: 1.25rem 1.3rem;
-      border-radius: 14px;
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border)
-    }
-
-    .kpi::after {
-      width: 95px;
-      height: 95px;
-      right: -55px;
-      top: -50px;
-      opacity: .72
-    }
-
-    .kpi-label {
-      font-size: .65rem;
-      line-height: 1.5;
-      letter-spacing: .075em;
-      color: var(--muted)
-    }
-
-    .kpi-value {
-      font-size: clamp(1.2rem, 1.65vw, 1.6rem);
-      font-weight: 750;
-      letter-spacing: -.035em;
-      margin: .48rem 0 .35rem;
-      line-height: 1.23;
-      color: var(--ink);
-      font-variant-numeric: tabular-nums
-    }
-
-    html.dark .kpi-value {
-      color: #dceafb
-    }
-
-    .kpi-sub {
-      font-size: .69rem;
-      line-height: 1.5
-    }
-
-    .hero {
-      padding: 1.75rem 1.95rem;
-      margin-bottom: 1.25rem
-    }
-
-    .hero-label {
-      font-size: .69rem;
-      letter-spacing: .11em
-    }
-
-    .hero-value {
-      font-size: clamp(2.25rem, 4vw, 3.3rem);
-      letter-spacing: -.015em
-    }
-
-    .hero-eq {
-      line-height: 1.65;
-      max-width: 760px
-    }
-
-    .toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: .12rem 0 .65rem;
-      gap: .85rem;
-      margin-bottom: .8rem
-    }
-
-    .toolbar>div {
-      min-width: 0
-    }
-
-    @media(min-width:821px) {
-      .toolbar>div:has(.search) {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        flex-wrap: nowrap !important;
-        gap: .6rem;
-        min-width: min(100%, 465px)
-      }
-
-      .toolbar>div:has(.search) .search {
-        flex: 1;
-        min-width: 0;
-        width: auto
-      }
-    }
-
-    .toolbar strong {
-      color: var(--ink)
-    }
-
-    .search,
-    .field input,
-    .field select,
-    .field textarea {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--ink);
-      transition: border-color .18s, box-shadow .18s
-    }
-
-    .field input,
-    .field select {
-      height: 44px;
-      padding: 0 .86rem
-    }
-
-    .field textarea {
-      padding: .75rem .86rem;
-      line-height: 1.5
-    }
-
-    .search {
-      height: 43px;
-      min-width: 180px;
-      width: min(320px, 100%);
-      padding: 0 .9rem
-    }
-
-    .search::placeholder,
-    .field input::placeholder,
-    .field textarea::placeholder {
-      color: var(--muted);
-      opacity: .8
-    }
-
-    .field {
-      margin-bottom: 1rem;
-      min-width: 0
-    }
-
-    .field label {
-      font-size: .75rem;
-      font-weight: 600;
-      line-height: 1.5;
-      color: var(--ink);
-      margin-bottom: .38rem
-    }
-
-    .field input[readonly] {
-      background: var(--surface-2);
-      color: var(--muted)
-    }
-
-    .btn {
-      min-height: 37px;
-      border-radius: 9px;
-      padding: .56rem .92rem;
-      font-size: .77rem;
-      font-weight: 600;
-      line-height: 1.2;
-      gap: .35rem;
-      transition: background .18s, border-color .18s, transform .18s;
-      white-space: nowrap
-    }
-
-    .btn-primary {
-      background: linear-gradient(115deg, #15385e, #235483);
-      color: #fff;
-      box-shadow: 0 3px 9px rgba(22, 58, 95, .13)
-    }
-
-    .btn-primary:hover {
-      background: linear-gradient(115deg, #1c4b7c, #2d6194)
-    }
-
-    .btn-outline {
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--ink)
-    }
-
-    .btn-outline:hover {
-      background: var(--blue-50);
-      border-color: #bfd4ec
-    }
-
-    .btn-danger {
-      border-color: #f0c8c8
-    }
-
-    .btn-danger:hover {
-      background: #fff1f1
-    }
-
-    .btn-sm {
-      min-height: 32px;
-      padding: .4rem .7rem;
-      font-size: .71rem
-    }
-
-    .btn:active {
-      transform: translateY(0)
-    }
-
-    .table-wrap {
-      max-width: 100%;
-      overflow-x: auto;
-      scrollbar-width: thin;
-      overscroll-behavior-x: contain
-    }
-
-    table {
-      font-size: .79rem;
-      min-width: 580px
-    }
-
-    th {
-      padding: .87rem 1rem;
-      white-space: nowrap;
-      font-size: .63rem;
-      font-weight: 700;
-      letter-spacing: .085em;
-      background: var(--surface-2)
-    }
-
-    td {
-      padding: 1rem;
-      line-height: 1.48;
-      vertical-align: middle
-    }
-
-    td strong {
-      font-weight: 650
-    }
-
-    td .btn {
-      margin: .12rem
-    }
-
-    tbody tr {
-      transition: background .15s
-    }
-
-    tr:hover td {
-      background: var(--blue-50)
-    }
-
-    .table-wrap td:last-child {
-      white-space: nowrap
-    }
-
-    .table-wrap .empty {
-      min-width: 0
-    }
-
-    .product-grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 285px), 1fr));
-      gap: 1rem
-    }
-
-    .product-card {
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
-      border-radius: 15px
-    }
-
-    .product-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 28px rgba(14, 41, 77, .09)
-    }
-
-    .product-body {
-      gap: .85rem;
-      align-items: center;
-      padding: 1rem
-    }
-
-    .product-img {
-      width: 103px;
-      height: 103px;
-      flex-basis: 103px;
-      box-shadow: none;
-      border: 1px solid var(--border)
-    }
-
-    .product-info {
-      padding: 0;
-      min-width: 0
-    }
-
-    .product-info h4 {
-      font-size: .91rem;
-      white-space: normal;
-      overflow-wrap: anywhere;
-      line-height: 1.35
-    }
-
-    .product-info .price {
-      font-size: 1.12rem;
-      margin: .42rem 0 .35rem
-    }
-
-    .product-actions {
-      padding: .15rem 1rem 1rem;
-      gap: .5rem
-    }
-
-    .quick-actions {
-      gap: .75rem;
-      padding: 1.1rem
-    }
-
-    .quick-action {
-      border-radius: 11px;
-      padding: .9rem .85rem;
-      font-size: .76rem;
-      line-height: 1.35;
-      min-height: 52px;
-      transition: border-color .18s, background .18s
-    }
-
-    .quick-action:hover {
-      background: var(--blue-50)
-    }
-
-    .chart-bars {
-      height: 210px;
-      gap: .7rem;
-      padding: 1.15rem .9rem
-    }
-
-    .chart-bar {
-      background: linear-gradient(180deg, #458bdc, #184a7b);
-      border-radius: 7px 7px 3px 3px
-    }
-
-    .chart-value {
-      font-size: .65rem
-    }
-
-    .chart-label {
-      font-size: .7rem
-    }
-
-    .modal-overlay {
-      backdrop-filter: blur(3px);
-      background: rgba(6, 16, 31, .58);
-      padding: 1rem
-    }
-
-    .modal {
-      max-width: 550px;
-      border-radius: 17px;
-      box-shadow: 0 25px 90px rgba(3, 16, 35, .22)
-    }
-
-    .modal-header {
-      padding: 1.2rem 1.4rem;
-      background: var(--surface)
-    }
-
-    .modal-header h3 {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.55rem;
-      font-weight: 600
-    }
-
-    .modal-close {
-      display: grid;
-      place-items: center;
-      border-radius: 9px;
-      width: 32px;
-      height: 32px;
-      font-size: 1.45rem
-    }
-
-    .modal-close:hover {
-      background: var(--surface-2)
-    }
-
-    .modal-body {
-      padding: 1.35rem 1.4rem
-    }
-
-    .modal-footer {
-      padding: 1rem 1.4rem;
-      background: var(--surface-2)
-    }
-
-    .modal-msg {
-      line-height: 1.65
-    }
-
-    .photo-preview {
-      height: 170px;
-      border-radius: 12px
-    }
-
-    .row-2 {
-      gap: .95rem
-    }
-
-    .sale-item {
-      border-radius: 11px;
-      gap: .65rem
-    }
-
-    .toast {
-      bottom: 1.25rem;
-      right: 1.25rem;
-      border-radius: 11px;
-      box-shadow: 0 12px 34px rgba(10, 23, 45, .2)
-    }
-
-    .empty {
-      font-size: .82rem;
-      line-height: 1.65
-    }
-
-    .notice-intro {
-      background: linear-gradient(120deg, #0d213c, #173f68);
-      border-radius: 16px;
-      padding: 1.5rem 1.65rem
-    }
-
-    .notice-list {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr));
-      gap: 1rem
-    }
-
-    .notice-card {
-      border-radius: 15px;
-      align-items: flex-start;
-      box-shadow: var(--shadow);
-      padding: 1.2rem
-    }
-
-    .notice-main {
-      min-width: 0
-    }
-
-    .notice-actions {
-      gap: .5rem
-    }
-
-    .notice-stat {
-      border-radius: 13px;
-      box-shadow: var(--shadow)
-    }
-
-    .badge,
-    .pill {
-      line-height: 1.45
-    }
-
-    .auth-visual {
-      background: linear-gradient(155deg, #061225, #0d2948 65%, #184b78)
-    }
-
-    .auth-card {
-      max-width: 370px;
-      padding: 1.5rem 0
-    }
-
-    .auth-card .brand {
-      color: var(--blue-mid);
-      font-size: .9rem;
-      letter-spacing: .28em
-    }
-
-    html.dark .auth-card .brand {
-      color: #9fc8f6
-    }
-
-    .auth-card h1 {
-      font-size: 2.15rem
-    }
-
-    .auth-card .sub {
-      line-height: 1.55;
-      margin-bottom: 1.7rem
-    }
-
-    .btn-auth {
-      height: 46px;
-      background: linear-gradient(115deg, #15385e, #235483)
-    }
-
-    .auth-switch a {
-      text-decoration: underline;
-      text-underline-offset: 3px
-    }
-
-    html.dark .btn-primary {
-      background: linear-gradient(115deg, #245e9a, #3575b9)
-    }
-
-    html.dark .btn-outline:hover {
-      border-color: #3a5775
-    }
-
-    html.dark .page-intro {
-      border: 1px solid #284568
-    }
-
-    html.dark .pill:not(.pill-green) {
-      color: #b4d7ff
-    }
-
-    html.dark .product-info .price {
-      color: #a3ceff
-    }
-
-    html.dark .field input,
-    html.dark .field select,
-    html.dark .field textarea {
-      background: var(--surface-2)
-    }
-
-    @media(max-width:1100px) {
-      .kpi-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr))
-      }
-
-      .dashboard-grid {
-        grid-template-columns: 1fr
-      }
-    }
-
-    @media(max-width:820px) {
-      .sidebar {
-        height: calc(73px + env(safe-area-inset-bottom));
-        padding-bottom: env(safe-area-inset-bottom);
-        border-right: 0;
-        border-top: 1px solid rgba(191, 219, 254, .15)
-      }
-
-      .sidebar-nav {
-        padding: .45rem .55rem;
-        gap: .45rem
-      }
-
-      .nav-item {
-        min-width: 78px;
-        width: 78px;
-        min-height: 55px;
-        gap: .22rem;
-        padding: .38rem .22rem;
-        font-size: .58rem
-      }
-
-      .nav-item.active {
-        box-shadow: inset 0 2px #93c5fd
-      }
-
-      .main {
-        padding-bottom: calc(73px + env(safe-area-inset-bottom))
-      }
-
-      .topbar {
-        height: 61px;
-        padding: 0 1rem
-      }
-
-      .topbar h2 {
-        font-size: 1.4rem
-      }
-
-      .content {
-        padding: 1rem .9rem 2rem
-      }
-
-      .page-intro {
-        padding: 1.35rem 1.2rem
-      }
-
-      .page-intro-mark {
-        font-size: 3.2rem
-      }
-
-      .toolbar {
-        flex-direction: column;
-        align-items: stretch
-      }
-
-      .toolbar>div {
-        width: 100%
-      }
-
-      .toolbar>div:has(.search) {
-        display: flex;
-        flex-wrap: wrap
-      }
-
-      .toolbar .search {
-        flex: 1;
-        width: 100%
-      }
-
-      .toolbar .btn {
-        width: auto
-      }
-
-      .product-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr))
-      }
-
-      .product-body {
-        flex-direction: column;
-        align-items: flex-start
-      }
-
-      .product-img {
-        width: 100%;
-        height: 145px;
-        flex-basis: auto
-      }
-
-      .product-info {
-        width: 100%
-      }
-
-      .product-actions .btn {
-        min-width: 0;
-        white-space: normal
-      }
-
-      .modal {
-        max-height: 92dvh
-      }
-    }
-
-    @media(max-width:540px) {
-      .content {
-        padding: .85rem .7rem 1.65rem
-      }
-
-      .page-intro {
-        padding: 1.2rem;
-        min-height: 115px;
-        margin-bottom: 1rem
-      }
-
-      .page-intro h3 {
-        font-size: 1.75rem
-      }
-
-      .page-intro p {
-        font-size: .75rem
-      }
-
-      .page-intro-mark {
-        display: none
-      }
-
-      .hero {
-        padding: 1.3rem 1.2rem
-      }
-
-      .kpi-grid {
-        gap: .6rem
-      }
-
-      .kpi {
-        padding: 1rem .85rem
-      }
-
-      .kpi-value {
-        font-size: clamp(1.06rem, 4.2vw, 1.35rem)
-      }
-
-      .kpi-label {
-        font-size: .61rem
-      }
-
-      .card-header {
-        padding: .95rem 1rem;
-        flex-wrap: wrap
-      }
-
-      .toolbar>div:has(.search)>.btn {
-        width: 100%
-      }
-
-      .toolbar>.btn {
-        width: 100%
-      }
-
-      .product-grid {
-        grid-template-columns: 1fr
-      }
-
-      .product-body {
-        flex-direction: row;
-        align-items: center
-      }
-
-      .product-img {
-        height: 100px;
-        width: 100px;
-        flex: 0 0 100px
-      }
-
-      .quick-actions {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .5rem;
-        padding: .8rem
-      }
-
-      .quick-action {
-        padding: .7rem;
-        min-height: 54px
-      }
-
-      .modal-overlay {
-        padding: 0
-      }
-
-      .modal {
-        border-radius: 17px 17px 0 0;
-        max-height: 93dvh
-      }
-
-      .modal-header {
-        padding: 1rem
-      }
-
-      .modal-body {
-        padding: 1rem
-      }
-
-      .modal-footer {
-        padding: .85rem 1rem
-      }
-
-      .modal-footer .btn {
-        flex: 1
-      }
-
-      .notice-intro {
-        padding: 1.2rem
-      }
-
-      .notice-card {
-        padding: 1rem
-      }
-
-      .toast {
-        bottom: calc(85px + env(safe-area-inset-bottom));
-        right: .65rem;
-        left: .65rem;
-        text-align: center
-      }
-    }
-
-    @media(max-width:360px) {
-      .kpi-grid {
-        grid-template-columns: 1fr
-      }
-
-      .product-img {
-        width: 78px;
-        height: 85px;
-        flex-basis: 78px
-      }
-
-      .quick-actions {
-        grid-template-columns: 1fr
-      }
-    }
-
-    .product-img img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      min-width: 0;
-      min-height: 0;
-      object-fit: cover;
-      object-position: center
-    }
-
-    .product-photo-fallback {
-      display: grid;
-      place-items: center;
-      width: 100%;
-      height: 100%;
-      font-size: 1.8rem
-    }
-
-    /* Acesso restrito */
-    .auth-access-note {
-      margin-top: 1.2rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-      text-align: center;
-      font-size: .78rem;
-      line-height: 1.6;
-      font-weight: 600;
-      color: var(--ink)
-    }
-
-    .auth-access-note span {
-      display: block;
-      font-weight: 400;
-      color: var(--muted);
-      margin-top: .25rem
-    }
   </style>
 </head>
 
@@ -3250,9 +1719,9 @@
         <p class="sub">Dados sincronizados na nuvem</p>
         <div class="auth-error" id="login-error"></div>
         <form onsubmit="return doLogin(event)">
-          <div class="field"><label for="login-email">E-mail</label><input id="login-email" type="email"
-              autocomplete="email" required /></div>
-          <div class="field"><label for="login-pass">Senha</label>
+          <div class="field"><label>E-mail</label><input id="login-email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field"><label>Senha</label>
             <div class="pass-wrap"><input id="login-pass" type="password" autocomplete="current-password" required />
               <button type="button" class="pass-toggle" data-target="login-pass"
                 onclick="togglePass(this)">Mostrar</button>
@@ -3261,9 +1730,9 @@
           <button type="submit" class="btn-auth" id="btn-login">Entrar</button>
         </form>
         <p class="auth-switch"><a onclick="resetPass()">Esqueci minha senha</a></p>
-        <p class="auth-access-note">Acesso exclusivo da ZM Pratas.<span>Precisa de ajuda para entrar? Entre em contato
-            com a responsável pelo sistema.</span></p>
+        <p class="auth-switch">Acesso exclusivo. Precisa de ajuda? Entre em contato com a responsável pelo sistema.</p>
       </div>
+
     </main>
   </div>
 
@@ -3298,7 +1767,7 @@
       </nav>
       <div class="sidebar-footer">
         <div class="user-line" id="user-line">—</div>
-        <div class="sync-badge">Firebase · autenticação</div>
+        <div class="sync-badge">Firebase · online</div>
         <button onclick="confirmLogout()">Sair</button>
       </div>
     </aside>
@@ -3346,16 +1815,17 @@
     const THEME_KEY = 'zm_theme_v1';
     const NAMES = ['produtos', 'clientes', 'vendas', 'compras', 'gastos', 'reinvestimentos', 'avisos'];
     let USER = null, PAGE = 'dashboard';
-    let DATA = {produtos: [], clientes: [], vendas: [], compras: [], gastos: [], reinvestimentos: [], avisos: []};
+    let DATA = { produtos: [], clientes: [], vendas: [], compras: [], gastos: [], reinvestimentos: [], avisos: [] };
 
     const col = n => db.collection('users').doc(USER.uid).collection(n);
-    const money = v => Number(v || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-    function today() {const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10);}
-    function fmtDate(s) {if (!s) return '—'; const p = String(s).slice(0, 10).split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : s;}
-    function toast(m) {const e = document.createElement('div'); e.className = 'toast'; e.textContent = m; document.getElementById('toast-root').appendChild(e); setTimeout(() => e.remove(), 2600);}
-    function showNotice(msg, type = 'error') {const el = document.getElementById('app-notice'); el.className = 'app-notice show ' + type; el.textContent = msg; clearTimeout(showNotice._t); showNotice._t = setTimeout(() => el.classList.remove('show'), 4500);}
+    const money = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    // Corrigido: usa a data local (não UTC), evitando "amanhã" após as 21h
+    function today() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+    function fmtDate(s) { if (!s) return '—'; const p = String(s).slice(0, 10).split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : s; }
+    function toast(m) { const e = document.createElement('div'); e.className = 'toast'; e.textContent = m; document.getElementById('toast-root').appendChild(e); setTimeout(() => e.remove(), 2600); }
+    function showNotice(msg, type = 'error') { const el = document.getElementById('app-notice'); el.className = 'app-notice show ' + type; el.textContent = msg; clearTimeout(showNotice._t); showNotice._t = setTimeout(() => el.classList.remove('show'), 4500); }
     const val = id => document.getElementById(id)?.value?.trim() || '';
-    const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[m]));
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
     const byId = (list, id) => DATA[list].find(x => x.id === id);
     const round2 = n => Math.round(n * 100) / 100;
     function mapErr(code) {
@@ -3370,34 +1840,34 @@
       })[code] || 'Não foi possível concluir. Tente novamente.';
     }
 
-    function togglePass(btn) {const i = document.getElementById(btn.dataset.target); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; btn.textContent = show ? 'Ocultar' : 'Mostrar';}
-    function showLogin() {document.getElementById('login-error').classList.remove('show');}
-    function toggleTheme() {const d = document.documentElement.classList.toggle('dark'); localStorage.setItem(THEME_KEY, d ? 'dark' : 'light'); document.getElementById('theme-btn').textContent = d ? '☀' : '☾';}
+    function togglePass(btn) { const i = document.getElementById(btn.dataset.target); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; btn.textContent = show ? 'Ocultar' : 'Mostrar'; }
+    function showLogin() { document.getElementById('login-error').classList.remove('show'); }
+    function toggleTheme() { const d = document.documentElement.classList.toggle('dark'); localStorage.setItem(THEME_KEY, d ? 'dark' : 'light'); document.getElementById('theme-btn').textContent = d ? '☀' : '☾'; }
 
     async function doLogin(e) {
       e.preventDefault();
       const err = document.getElementById('login-error'); err.classList.remove('show', 'ok');
       const btn = document.getElementById('btn-login'); btn.disabled = true;
-      try {await auth.signInWithEmailAndPassword(val('login-email').toLowerCase(), val('login-pass'));}
-      catch (ex) {err.textContent = mapErr(ex.code); err.classList.add('show');}
+      try { await auth.signInWithEmailAndPassword(val('login-email').toLowerCase(), val('login-pass')); }
+      catch (ex) { err.textContent = mapErr(ex.code); err.classList.add('show'); }
       btn.disabled = false; return false;
     }
     async function resetPass() {
       const err = document.getElementById('login-error'); const email = val('login-email').toLowerCase();
       err.classList.remove('show', 'ok');
-      if (!email) {err.textContent = 'Digite seu e-mail acima e clique novamente.'; err.classList.add('show'); return;}
-      try {await auth.sendPasswordResetEmail(email); err.textContent = 'Se o e-mail existir, enviamos o link de redefinição.'; err.classList.add('show', 'ok');}
-      catch (ex) {err.textContent = mapErr(ex.code); err.classList.add('show');}
+      if (!email) { err.textContent = 'Digite seu e-mail acima e clique novamente.'; err.classList.add('show'); return; }
+      try { await auth.sendPasswordResetEmail(email); err.textContent = 'Se o e-mail existir, enviamos o link de redefinição.'; err.classList.add('show', 'ok'); }
+      catch (ex) { err.textContent = mapErr(ex.code); err.classList.add('show'); }
     }
-    function confirmLogout() {openModal('Sair da conta', '<p class="modal-msg">Tem certeza que deseja sair?</p>', async () => {await auth.signOut(); return true;}, {saveLabel: 'Sair', danger: true, silent: true, noReload: true});}
-    function logoutUI() {if (unsubscribeDepoimentos) {unsubscribeDepoimentos(); unsubscribeDepoimentos = null;} DEPOIMENTOS = []; closeModal(); USER = null; DATA = {produtos: [], clientes: [], vendas: [], compras: [], gastos: [], reinvestimentos: [], avisos: []}; document.getElementById('app').classList.add('hidden'); document.getElementById('auth').classList.remove('hidden'); showLogin(); document.getElementById('login-pass').value = '';}
+    function confirmLogout() { openModal('Sair da conta', '<p class="modal-msg">Tem certeza que deseja sair?</p>', async () => { await auth.signOut(); return true; }, { saveLabel: 'Sair', danger: true, silent: true, noReload: true }); }
+    function logoutUI() { USER = null; DATA = { produtos: [], clientes: [], vendas: [], compras: [], gastos: [], reinvestimentos: [], avisos: [] }; document.getElementById('app').classList.add('hidden'); document.getElementById('auth').classList.remove('hidden'); showLogin(); document.getElementById('login-pass').value = ''; }
 
     async function loadAll() {
       const res = await Promise.all(NAMES.map(async n => {
         let snap;
-        try {snap = await col(n).orderBy('createdAt', 'desc').get();}
-        catch (ex) {if (ex.code === 'permission-denied') throw ex; snap = await col(n).get();}
-        return [n, snap.docs.map(d => ({id: d.id, ...d.data()}))];
+        try { snap = await col(n).orderBy('createdAt', 'desc').get(); }
+        catch (ex) { if (ex.code === 'permission-denied') throw ex; snap = await col(n).get(); }
+        return [n, snap.docs.map(d => ({ id: d.id, ...d.data() }))];
       }));
       DATA = Object.fromEntries(res);
     }
@@ -3406,16 +1876,16 @@
       document.getElementById('app').classList.remove('hidden');
       document.getElementById('user-line').textContent = USER.email || USER.displayName || '—';
       document.getElementById('content').innerHTML = '<div class="empty">Sincronizando...</div>';
-      try {await loadAll(); observarDepoimentos(); go('dashboard');}
-      catch (ex) {showNotice(mapErr(ex.code || ''), 'error'); document.getElementById('content').innerHTML = '<div class="empty">Erro ao carregar dados</div>';}
+      try { await loadAll(); observarDepoimentos(); go('dashboard'); }
+      catch (ex) { showNotice(mapErr(ex.code || ''), 'error'); document.getElementById('content').innerHTML = '<div class="empty">Erro ao carregar dados</div>'; }
     }
-    auth.onAuthStateChanged(async u => {if (u) {USER = u; await enterApp();} else logoutUI();});
+    auth.onAuthStateChanged(async u => { if (u) { USER = u; await enterApp(); } else logoutUI(); });
 
-    function closeModal() {document.getElementById('modal-root').innerHTML = '';}
-    function modalError(msg) {const el = document.getElementById('modal-error'); if (!el) return; el.textContent = msg; el.classList.add('show');}
+    function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+    function modalError(msg) { const el = document.getElementById('modal-error'); if (!el) return; el.textContent = msg; el.classList.add('show'); }
     function openModal(title, body, onSave, opts = {}) {
-      document.getElementById('modal-root').innerHTML = `<div class="modal-overlay" role="presentation" onclick="if(event.target===this)closeModal()"><div class="modal">
-    <div class="modal-header"><h3>${esc(title)}</h3><button class="modal-close" aria-label="Fechar" onclick="closeModal()">×</button></div>
+      document.getElementById('modal-root').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-header"><h3>${title}</h3><button class="modal-close" aria-label="Fechar" onclick="closeModal()">×</button></div>
     <div class="modal-body">${body}<div class="auth-error" id="modal-error" style="margin-top:.75rem"></div></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn ${opts.danger ? 'btn-danger' : 'btn-primary'}" id="modal-save">${opts.saveLabel || 'Salvar'}</button></div></div></div>`;
       document.getElementById('modal-save').onclick = async function () {
@@ -3425,11 +1895,13 @@
         let terminou = false;
         const watchdog = setTimeout(() => {
           if (terminou) return;
+          btn.disabled = false;
+          btn.textContent = opts.saveLabel || 'Salvar';
           modalError('O salvamento está demorando mais que o normal. Verifique sua conexão com a internet e o Firebase.');
-          showNotice('A operação continua em andamento. Não envie novamente.', 'error');
+          showNotice('O salvamento está demorando. Verifique a conexão com o Firebase.', 'error');
         }, 12000);
         try {
-          if (!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'), {userMsg: 'Sua sessão expirou. Faça login novamente.'});
+          if (!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado. Faça login novamente.'), { userMsg: 'Sua sessão expirou. Faça login novamente.' });
           const ok = await onSave();
           terminou = true;
           clearTimeout(watchdog);
@@ -3437,7 +1909,7 @@
             closeModal();
             if (!opts.silent) toast(opts.okMsg || 'Salvo com sucesso');
             if (!opts.noReload) {
-              try {await Promise.race([loadAll(), new Promise((_, reject) => setTimeout(() => reject(new Error('reload-timeout')), 8000))]);} catch (reloadErr) {console.warn('Dados salvos, mas a atualização da tela demorou:', reloadErr); showNotice('Salvo, mas a atualização dos dados demorou. Atualize a página se necessário.', 'error');}
+              try { await Promise.race([loadAll(), new Promise((_, reject) => setTimeout(() => reject(new Error('reload-timeout')), 8000))]); } catch (reloadErr) { console.warn('Dados salvos, mas a atualização da tela demorou:', reloadErr); }
               go(PAGE);
             }
           }
@@ -3449,13 +1921,14 @@
         } finally {
           terminou = true;
           clearTimeout(watchdog);
-          if (btn.isConnected) {btn.disabled = false; btn.textContent = opts.saveLabel || 'Salvar';}
+          if (btn.isConnected) { btn.disabled = false; btn.textContent = opts.saveLabel || 'Salvar'; }
         }
       };
     }
 
+
+    /* ---------- Depoimentos públicos do catálogo ---------- */
     let DEPOIMENTOS = [];
-    let unsubscribeDepoimentos = null;
     function renderDepoimentos() {
       const sorted = [...DEPOIMENTOS].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       return `<div class="notice-intro"><div><div class="notice-eyebrow">ZM PRATAS · CLIENTES</div><h2>Depoimentos das clientes 💙</h2><p>Os depoimentos publicados aparecem na página inicial do catálogo, na seção “O que nossas clientes dizem”.</p></div><button class="btn btn-primary" onclick="modalDepoimento()">+ Novo depoimento</button></div>
@@ -3464,13 +1937,12 @@
   ${sorted.map(d => `<tr><td><strong>${escHtml(d.nome || 'Cliente')}</strong>${d.fotoUrl ? '<br><span class="meta">Com foto</span>' : ''}</td><td style="max-width:420px;white-space:normal">${escHtml(d.mensagem || '')}</td><td>${d.publicado ? '<span class="pill pill-green">Publicado</span>' : '<span class="pill">Oculto</span>'}</td><td><div class="actions"><button class="btn btn-outline btn-sm" onclick="modalDepoimento('${d.id}')">Editar</button><button class="btn btn-outline btn-sm" onclick="alternarDepoimento('${d.id}',${!d.publicado})">${d.publicado ? 'Ocultar' : 'Publicar'}</button><button class="btn btn-danger btn-sm" onclick="excluirDepoimento('${d.id}')">Excluir</button></div></td></tr>`).join('') || '<tr><td colspan="4" class="empty">Nenhum depoimento cadastrado ainda.</td></tr>'}
   </tbody></table></div></div>`;
     }
-    const escHtml = esc;
+    function escHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
     function observarDepoimentos() {
-      if (unsubscribeDepoimentos) unsubscribeDepoimentos();
-      unsubscribeDepoimentos = db.collection('depoimentos_publicos').onSnapshot(snap => {
-        DEPOIMENTOS = snap.docs.map(d => ({id: d.id, ...d.data()}));
+      db.collection('depoimentos_publicos').onSnapshot(snap => {
+        DEPOIMENTOS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         if (PAGE === 'depoimentos') document.getElementById('content').innerHTML = renderDepoimentos();
-      }, err => {console.error('Erro ao sincronizar depoimentos:', err);});
+      }, err => { console.error('Erro ao sincronizar depoimentos:', err); });
     }
     function modalDepoimento(id) {
       const d = DEPOIMENTOS.find(x => x.id === id) || {};
@@ -3484,76 +1956,70 @@
         const nome = document.getElementById('dep-nome').value.trim();
         const mensagem = document.getElementById('dep-mensagem').value.trim();
         const file = document.getElementById('dep-foto').files[0];
-        if (!nome || !mensagem) {modalError('Preencha o nome e a mensagem.'); return false;}
-        if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {modalError('Use uma imagem JPG, PNG ou WebP.'); return false;}
-        if (file && file.size > 5 * 1024 * 1024) {modalError('A imagem deve ter no máximo 5 MB.'); return false;}
+        if (!nome || !mensagem) { modalError('Preencha o nome e a mensagem.'); return false; }
+        if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { modalError('Use uma imagem JPG, PNG ou WebP.'); return false; }
+        if (file && file.size > 5 * 1024 * 1024) { modalError('A imagem deve ter no máximo 5 MB.'); return false; }
         let fotoUrl = d.fotoUrl || '', fotoPath = d.fotoPath || '';
-        if (document.getElementById('dep-remover-foto').checked) {fotoUrl = ''; fotoPath = '';}
+        if (document.getElementById('dep-remover-foto').checked) { fotoUrl = ''; fotoPath = ''; }
         if (file) {
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
           const path = `depoimentos/${USER.uid}/${idNovo}/${Date.now()}_${safeName}`;
           const ref = storage.ref().child(path);
-          await ref.put(file, {contentType: file.type});
+          await ref.put(file, { contentType: file.type });
           fotoUrl = await ref.getDownloadURL(); fotoPath = path;
         }
-        const payload = {nome, mensagem, fotoUrl, fotoPath, publicado: document.getElementById('dep-publicado').checked, updatedAt: TS()};
+        const payload = { nome, mensagem, fotoUrl, fotoPath, publicado: document.getElementById('dep-publicado').checked, updatedAt: TS() };
         if (!d.createdAt) payload.createdAt = TS();
-        await db.collection('depoimentos_publicos').doc(idNovo).set(payload, {merge: true});
-        if (document.getElementById('dep-remover-foto').checked && d.fotoPath) {try {await storage.ref().child(d.fotoPath).delete();} catch (e) {console.warn('Não foi possível remover a foto antiga:', e);} }
+        await db.collection('depoimentos_publicos').doc(idNovo).set(payload, { merge: true });
+        if (document.getElementById('dep-remover-foto').checked && d.fotoPath) { try { await storage.ref().child(d.fotoPath).delete(); } catch (e) { console.warn('Não foi possível remover a foto antiga:', e); } }
         return true;
-      }, {okMsg: 'Depoimento salvo', noReload: true});
+      }, { okMsg: 'Depoimento salvo', noReload: true });
     }
     async function alternarDepoimento(id, publicado) {
-      try {await db.collection('depoimentos_publicos').doc(id).update({publicado, updatedAt: TS()}); toast(publicado ? 'Depoimento publicado' : 'Depoimento ocultado');}
-      catch (e) {showNotice(e.message || 'Não foi possível atualizar o depoimento.', 'error');}
+      try { await db.collection('depoimentos_publicos').doc(id).update({ publicado, updatedAt: TS() }); toast(publicado ? 'Depoimento publicado' : 'Depoimento ocultado'); }
+      catch (e) { showNotice(e.message || 'Não foi possível atualizar o depoimento.', 'error'); }
     }
     function excluirDepoimento(id) {
       openModal('Excluir depoimento', '<p class="modal-msg">Tem certeza de que deseja excluir este depoimento do catálogo?</p>', async () => {
         const d = DEPOIMENTOS.find(x => x.id === id);
         await db.collection('depoimentos_publicos').doc(id).delete();
-        if (d?.fotoPath) {try {await storage.ref().child(d.fotoPath).delete();} catch (e) {console.warn('Foto não removida do Storage:', e);} }
+        if (d?.fotoPath) { try { await storage.ref().child(d.fotoPath).delete(); } catch (e) { console.warn('Foto não removida do Storage:', e); } }
         return true;
-      }, {saveLabel: 'Excluir', danger: true, okMsg: 'Depoimento excluído', noReload: true});
+      }, { saveLabel: 'Excluir', danger: true, okMsg: 'Depoimento excluído', noReload: true });
     }
 
     function go(page) {
       PAGE = page;
       document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
-      const titles = {dashboard: 'Dashboard', produtos: 'Produtos', simulador: 'Simulador de lucro', vendas: 'Vendas', clientes: 'Clientes', depoimentos: 'Depoimentos', compras: 'Compras / Estoque', gastos: 'Gastos', reinvest: 'Reinvestimento', receber: 'Contas a Receber'};
+      const titles = { dashboard: 'Dashboard', produtos: 'Produtos', simulador: 'Simulador de lucro', vendas: 'Vendas', clientes: 'Clientes', depoimentos: 'Depoimentos', compras: 'Compras / Estoque', gastos: 'Gastos', reinvest: 'Reinvestimento', receber: 'Contas a Receber' };
       document.getElementById('page-title').textContent = titles[page];
-      const r = {dashboard: renderDashboard, produtos: renderProdutos, simulador: renderSimulador, vendas: renderVendas, clientes: renderClientes, depoimentos: renderDepoimentos, compras: renderCompras, gastos: renderGastos, reinvest: renderReinvest, receber: renderReceber};
-      const pageDetails = {
-        produtos: ['CATÁLOGO E ESTOQUE', 'Suas joias, organizadas', 'Gerencie o catálogo, os preços e a disponibilidade das peças.', '◇'],
-        vendas: ['MOVIMENTAÇÃO', 'Histórico de vendas', 'Acompanhe pedidos, valores e recebimentos em um só lugar.', '↗'],
-        clientes: ['RELACIONAMENTO', 'Suas clientes', 'Consulte contatos e mantenha os dados de suas clientes organizados.', '♡'],
-        depoimentos: ['EXPERIÊNCIAS', 'Depoimentos das clientes', 'Organize as mensagens e os registros de quem confia na ZM Pratas.', '♡'],
-        compras: ['CONTROLE DE ESTOQUE', 'Compras e estoque', 'Registre as entradas de mercadorias e acompanhe suas peças disponíveis.', '◇'],
-        receber: ['CONTROLE FINANCEIRO', 'Contas a receber', 'Acompanhe parcelas, vencimentos e pagamentos pendentes.', '↗'],
-        gastos: ['CONTROLE FINANCEIRO', 'Registro de gastos', 'Visualize e organize as despesas do negócio.', '−'],
-        reinvest: ['PLANEJAMENTO FINANCEIRO', 'Reinvestimento', 'Acompanhe a reserva e o valor disponível para crescer com segurança.', '↻']
-      };
-      const detail = pageDetails[page];
-      const heading = detail ? `<section class="page-intro" aria-label="Introdução da página"><div><span class="page-intro-kicker">${detail[0]}</span><h3>${detail[1]}</h3><p>${detail[2]}</p></div><span class="page-intro-mark" aria-hidden="true">${detail[3]}</span></section>` : '';
-      document.getElementById('content').innerHTML = heading + r[page]();
+      const r = { dashboard: renderDashboard, produtos: renderProdutos, simulador: renderSimulador, vendas: renderVendas, clientes: renderClientes, depoimentos: renderDepoimentos, compras: renderCompras, gastos: renderGastos, reinvest: renderReinvest, receber: renderReceber };
+      document.getElementById('content').innerHTML = r[page]();
       if (page === 'simulador') calcSimulador();
     }
 
     const total = (list, key = 'valor') => (list || []).reduce((s, x) => s + Number(x[key] || 0), 0);
+
+    // Nomes: usa o nome salvo na venda; vendas novas podem ter vários itens.
     const nomeCli = v => byId('clientes', v.clienteId)?.nome || v.clienteNome || '—';
-    const itensVenda = v => Array.isArray(v.itens) && v.itens.length ? v.itens : [{produtoId: v.produtoId, produtoNome: v.produtoNome, qtd: Number(v.qtd || 0), preco: Number(v.precoUnitario ?? v.valor ?? 0), custo: Number(v.custo || 0)}];
-    const nomeProd = o => {const it = itensVenda(o); return it.length > 1 ? it.map(x => x.produtoNome || byId('produtos', x.produtoId)?.nome || '—').join(', ') : (byId('produtos', o.produtoId)?.nome || o.produtoNome || it[0]?.produtoNome || '—');};
+    const itensVenda = v => Array.isArray(v.itens) && v.itens.length ? v.itens : [{ produtoId: v.produtoId, produtoNome: v.produtoNome, qtd: Number(v.qtd || 0), preco: Number(v.precoUnitario ?? v.valor ?? 0), custo: Number(v.custo || 0) }];
+    const nomeProd = o => { const it = itensVenda(o); return it.length > 1 ? it.map(x => x.produtoNome || byId('produtos', x.produtoId)?.nome || '—').join(', ') : (byId('produtos', o.produtoId)?.nome || o.produtoNome || it[0]?.produtoNome || '—'); };
+    // Custo da venda: soma o custo gravado no momento da venda.
     const custoVenda = v => itensVenda(v).reduce((s, it) => s + Number(it.custo ?? byId('produtos', it.produtoId)?.custo ?? 0) * Number(it.qtd || 0), 0);
 
     const parcelasDe = v => v.parcelas || [];
+    // Cada parcela paga entra no relatório na data em que foi dada baixa.
     const recebimentosVenda = v => {
       const ps = parcelasDe(v);
-      if (ps.length) return ps.filter(p => p.pago).map(p => ({data: p.dataPagamento || p.dataBaixa || v.data, valor: Number(p.valor || 0)}));
+      if (ps.length) return ps.filter(p => p.pago).map(p => ({ data: p.dataPagamento || p.dataBaixa || v.data, valor: Number(p.valor || 0) }));
       const valor = recebidoVenda(v);
-      return valor > 0 ? [{data: v.data, valor}] : [];
+      return valor > 0 ? [{ data: v.data, valor }] : [];
     };
+    // O saldo a receber é o total da venda menos o que já entrou. Isso também contempla
+    // vendas antigas/à vista com recebimento parcial, sem depender apenas de parcelas.
     const aReceber = v => Math.max(0, round2(Number(v.valor || 0) - recebidoVenda(v)));
-    function addDays(s, n) {const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10);}
-    function addMonths(s, n) {const [y, m, d] = s.split('-').map(Number); const t = new Date(y, m - 1 + n, 1, 12); t.setDate(Math.min(d, new Date(y, m + n, 0).getDate())); return t.toISOString().slice(0, 10);}
+    function addDays(s, n) { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+    function addMonths(s, n) { const [y, m, d] = s.split('-').map(Number); const t = new Date(y, m - 1 + n, 1, 12); t.setDate(Math.min(d, new Date(y, m + n, 0).getDate())); return t.toISOString().slice(0, 10); }
     function pagtoLabel(v) {
       const ps = parcelasDe(v); if (!ps.length) return '<span class="badge ok">À vista</span>';
       const pg = ps.filter(p => p.pago).length, atraso = ps.some(p => !p.pago && p.venc < today());
@@ -3598,43 +2064,25 @@
   ${DATA.vendas.slice(0, 6).map(v => `<tr><td>${fmtDate(v.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td><strong>${money(v.valor)}</strong></td></tr>`).join('') || '<tr><td colspan="4" class="empty">Nenhuma venda ainda</td></tr>'}
   </tbody></table></div></div>`;
     }
-    function renderSalesChart() {const now = new Date(today() + 'T12:00:00'); const arr = []; for (let i = 5; i >= 0; i--) {const d = new Date(now.getFullYear(), now.getMonth() - i, 1, 12); const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; const totalv = DATA.vendas.filter(v => String(v.data || '').slice(0, 7) === key).reduce((s, v) => s + Number(v.valor || 0), 0); arr.push({label: d.toLocaleDateString('pt-BR', {month: 'short'}).replace('.', ''), v: totalv});} const max = Math.max(1, ...arr.map(x => x.v)); return `<div class="chart-bars">${arr.map(x => `<div class="chart-col"><div class="chart-value">${x.v ? money(x.v).replace('R$', 'R$') : ''}</div><div class="chart-bar" style="height:${Math.max(2, x.v / max * 125)}px"></div><div class="chart-label">${x.label}</div></div>`).join('')}</div>`;}
-    function exportarBackup() {const data = {versao: 2, exportadoEm: new Date().toISOString(), colecoes: {produtos: DATA.produtos, clientes: DATA.clientes, vendas: DATA.vendas, compras: DATA.compras, gastos: DATA.gastos, reinvestimentos: DATA.reinvestimentos, avisos: DATA.avisos}}; const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `zm-pratas-backup-${today()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast('Backup baixado');}
-    function importarBackup() {const input = document.createElement('input'); input.type = 'file'; input.accept = '.json,application/json'; input.onchange = async () => {const f = input.files?.[0]; if (!f) return; try {const data = JSON.parse(await f.text()); const c = data.colecoes || data; const names = NAMES.filter(n => Array.isArray(c[n])); if (!names.length) throw Error('Arquivo sem dados reconhecidos.'); openModal('Restaurar backup', `<p class="modal-msg">Serão importados <strong>${names.map(n => `${n}: ${c[n].length}`).join(' · ')}</strong>.</p><p class="modal-msg" style="margin-top:.5rem">Registros existentes não serão apagados; os registros do backup serão adicionados com os mesmos IDs quando possível.</p>`, async () => {for (const n of names) {for (const item of c[n]) {if (!item.id) continue; const copy = {...item}; delete copy.id; await col(n).doc(item.id).set(copy, {merge: true});} } await loadAll(); go(PAGE); return true;}, {okMsg: 'Backup restaurado'});} catch (e) {showNotice('Não foi possível ler o backup.', 'error');} }; input.click();}
+    function renderSalesChart() { const now = new Date(today() + 'T12:00:00'); const arr = []; for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1, 12); const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; const totalv = DATA.vendas.filter(v => String(v.data || '').slice(0, 7) === key).reduce((s, v) => s + Number(v.valor || 0), 0); arr.push({ label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''), v: totalv }); } const max = Math.max(1, ...arr.map(x => x.v)); return `<div class="chart-bars">${arr.map(x => `<div class="chart-col"><div class="chart-value">${x.v ? money(x.v).replace('R$', 'R$') : ''}</div><div class="chart-bar" style="height:${Math.max(2, x.v / max * 125)}px"></div><div class="chart-label">${x.label}</div></div>`).join('')}</div>`; }
+    function exportarBackup() { const data = { versao: 2, exportadoEm: new Date().toISOString(), colecoes: { produtos: DATA.produtos, clientes: DATA.clientes, vendas: DATA.vendas, compras: DATA.compras, gastos: DATA.gastos, reinvestimentos: DATA.reinvestimentos, avisos: DATA.avisos } }; const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `zm-pratas-backup-${today()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast('Backup baixado'); }
+    function importarBackup() { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json,application/json'; input.onchange = async () => { const f = input.files?.[0]; if (!f) return; try { const data = JSON.parse(await f.text()); const c = data.colecoes || data; const names = NAMES.filter(n => Array.isArray(c[n])); if (!names.length) throw Error('Arquivo sem dados reconhecidos.'); openModal('Restaurar backup', `<p class="modal-msg">Serão importados <strong>${names.map(n => `${n}: ${c[n].length}`).join(' · ')}</strong>.</p><p class="modal-msg" style="margin-top:.5rem">Registros existentes não serão apagados; os registros do backup serão adicionados com os mesmos IDs quando possível.</p>`, async () => { for (const n of names) { for (const item of c[n]) { if (!item.id) continue; const copy = { ...item }; delete copy.id; await col(n).doc(item.id).set(copy, { merge: true }); } } await loadAll(); go(PAGE); return true; }, { okMsg: 'Backup restaurado' }); } catch (e) { showNotice('Não foi possível ler o backup.', 'error'); } }; input.click(); }
 
+    /* ---------- Simulador de lucro (não grava nem altera dados) ---------- */
     function renderSimulador() {
       if (!DATA.produtos.length) {
-        return `<div class="simulator"><div class="card sim-empty"><h3>Simulador de lucro</h3><p>Cadastre um produto em <strong>Produtos</strong> para começar. O simulador usará automaticamente o custo já registrado.</p><button class="btn btn-primary" onclick="go('produtos')">Ir para produtos</button></div></div>`;
+        return `<div class="card"><div class="card-header"><h3>Simulador de lucro</h3></div><p>Cadastre um produto em <strong>Produtos</strong> para começar. O simulador usará automaticamente o custo já registrado.</p></div>`;
       }
       const primeiro = DATA.produtos[0];
-      return `<section class="simulator" aria-label="Simulador de lucro">
-    <div class="sim-intro"><div><span class="sim-eyebrow">PLANEJAMENTO DE PREÇOS</span><h3>Simulador de lucro</h3><p>Descubra o melhor preço para suas joias e visualize a margem de cada venda.</p></div><span class="sim-intro-icon" aria-hidden="true">◇</span></div>
-    <div class="card sim-panel">
-      <div class="sim-section"><div class="sim-section-heading"><span class="sim-step">01</span><div><h4>Selecione o produto</h4><p>Os valores cadastrados são preenchidos automaticamente.</p></div></div>
-        <div class="field sim-field"><label for="sim-produto">Escolha a joia</label><select id="sim-produto" onchange="simSelecionarProduto()">${DATA.produtos.map(p => `<option value="${esc(p.id)}" ${p.id === primeiro.id ? 'selected' : ''}>${esc(p.nome)} · custo ${money(p.custo || 0)}</option>`).join('')}</select></div>
-      </div>
-      <div class="sim-section"><div class="sim-section-heading"><span class="sim-step">02</span><div><h4>Custos e preço de venda</h4><p>Ajuste os valores para comparar diferentes cenários.</p></div></div>
-        <div class="sim-fields">
-          <div class="field sim-field"><label for="sim-custo">Custo cadastrado da joia (R$)</label><input id="sim-custo" type="number" value="${Number(primeiro.custo || 0).toFixed(2)}" readonly/></div>
-          <div class="field sim-field"><label for="sim-preco">Preço de venda para simular (R$)</label><input id="sim-preco" type="number" min="0" step="0.01" value="${Number(primeiro.preco || 0).toFixed(2)}" oninput="calcSimulador()"/></div>
-          <div class="field sim-field"><label for="sim-extra">Outros custos por peça (R$)</label><input id="sim-extra" type="number" min="0" step="0.01" value="0" oninput="calcSimulador()"/><small class="sim-help">Ex.: embalagem ou frete</small></div>
-          <div class="field sim-field"><label for="sim-taxa">Taxa/comissão da venda (%)</label><input id="sim-taxa" type="number" min="0" max="100" step="0.1" value="0" oninput="calcSimulador()"/></div>
-        </div>
-      </div>
-      <div class="sim-section"><div class="sim-section-heading"><span class="sim-step">03</span><div><h4>Meta de lucro</h4><p>Defina quanto deseja ganhar sobre o custo total.</p></div></div>
-        <div class="sim-fields">
-          <div class="field sim-field"><label for="sim-markup">Lucro desejado (%) sobre o custo total</label><input id="sim-markup" type="number" min="0" step="1" value="100" oninput="calcSimulador()"/></div>
-          <div class="field sim-field"><label for="sim-sugerido">Preço de venda sugerido</label><input id="sim-sugerido" readonly value="—"/></div>
-        </div>
-      </div>
-    </div>
-    <div class="sim-results-heading"><div><span class="sim-eyebrow">RESULTADO DA SIMULAÇÃO</span><h4>Resumo financeiro</h4></div><span class="sim-live"><span aria-hidden="true"></span> Atualização automática</span></div>
-    <div class="sim-results" aria-live="polite">
-      <div class="sim-result sim-result-cost"><span class="sim-result-label">Custo total estimado</span><strong id="sim-total-custo">R$ 0,00</strong><span class="sim-result-detail">Custo da joia + despesas adicionais</span></div>
-      <div class="sim-result sim-result-profit"><span class="sim-result-label">Lucro estimado por joia</span><strong id="sim-lucro">R$ 0,00</strong><span id="sim-margem" class="sim-result-detail">Margem: 0%</span></div>
-    </div>
-    <p class="sim-notice" id="sim-nota">Simulação apenas: nada será salvo no financeiro, nas vendas ou no estoque.</p>
-  </section>`;
+      return `<div class="card" style="max-width:850px">
+    <div class="card-header"><div><h3>Simulador de lucro</h3><p class="meta">Teste preços antes de vender, sem registrar vendas ou alterar o estoque.</p></div></div>
+    <div class="field"><label>Escolha a joia</label><select id="sim-produto" onchange="simSelecionarProduto()">${DATA.produtos.map(p => `<option value="${p.id}" ${p.id === primeiro.id ? 'selected' : ''}>${esc(p.nome)} · custo ${money(p.custo || 0)}</option>`).join('')}</select></div>
+    <div class="row-2"><div class="field"><label>Custo cadastrado da joia (R$)</label><input id="sim-custo" type="number" value="${Number(primeiro.custo || 0).toFixed(2)}" readonly/></div><div class="field"><label>Preço de venda para simular (R$)</label><input id="sim-preco" type="number" min="0" step="0.01" value="${Number(primeiro.preco || 0).toFixed(2)}" oninput="calcSimulador()"/></div></div>
+    <div class="row-2"><div class="field"><label>Outros custos por peça (R$)</label><input id="sim-extra" type="number" min="0" step="0.01" value="0" oninput="calcSimulador()"/><small class="meta">Ex.: embalagem ou frete.</small></div><div class="field"><label>Taxa/comissão da venda (%)</label><input id="sim-taxa" type="number" min="0" max="100" step="0.1" value="0" oninput="calcSimulador()"/></div></div>
+    <div class="row-2"><div class="field"><label>Lucro desejado (%) sobre o custo total</label><input id="sim-markup" type="number" min="0" step="1" value="100" oninput="calcSimulador()"/></div><div class="field"><label>Preço sugerido</label><input id="sim-sugerido" readonly value="—"/></div></div>
+    <div class="row-2" style="margin-top:.5rem"><div class="kpi"><div class="kpi-label">Custo total estimado</div><div class="kpi-value" id="sim-total-custo">R$ 0,00</div></div><div class="kpi"><div class="kpi-label">Lucro estimado por joia</div><div class="kpi-value" id="sim-lucro">R$ 0,00</div><div class="kpi-sub" id="sim-margem">Margem: 0%</div></div></div>
+    <p class="meta" id="sim-nota" style="margin-top:1rem">Simulação apenas: nada será salvo no financeiro, nas vendas ou no estoque.</p>
+  </div>`;
     }
     function simSelecionarProduto() {
       const p = byId('produtos', val('sim-produto')); if (!p) return;
@@ -3647,34 +2095,19 @@
       const preco = Math.max(0, Number(val('sim-preco')) || 0), markup = Math.max(0, Number(val('sim-markup')) || 0) / 100;
       const base = custo + extra, lucro = preco * (1 - taxa) - base, margem = preco > 0 ? lucro / preco * 100 : 0;
       const sugerido = (1 - taxa) > 0 ? base * (1 + markup) / (1 - taxa) : 0;
-      const fmt = n => money(Number.isFinite(n) ? n : 0), set = (id, value) => {const e = document.getElementById(id); if (e) e.textContent = value;};
+      const fmt = n => money(Number.isFinite(n) ? n : 0), set = (id, value) => { const e = document.getElementById(id); if (e) e.textContent = value; };
       set('sim-total-custo', fmt(base)); set('sim-lucro', fmt(lucro));
-      set('sim-margem', `Margem líquida estimada: ${margem.toLocaleString('pt-BR', {maximumFractionDigits: 1})}%`);
+      set('sim-margem', `Margem líquida estimada: ${margem.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`);
       const s = document.getElementById('sim-sugerido'); if (s) s.value = fmt(sugerido);
       const l = document.getElementById('sim-lucro'); if (l) l.style.color = lucro < 0 ? 'var(--danger)' : 'var(--success)';
       set('sim-nota', lucro < 0 ? 'Atenção: neste preço, o valor recebido após a taxa fica abaixo do custo estimado.' : 'Simulação apenas: nada será salvo no financeiro, nas vendas ou no estoque.');
     }
 
-    function fotoProdutoUrl(produto) {
-      return [produto?.foto, produto?.imagem_url, produto?.imagemUrl, produto?.fotoUrl, produto?.image_url]
-        .find(url => typeof url === 'string' && url.trim())?.trim() || '';
-    }
-    function falhaImagemProduto(img) {
-      img.hidden = true;
-      const container = img.closest('.product-img, .photo-preview');
-      if (container) {
-        container.classList.remove('has-photo');
-        const fallback = document.createElement('span');
-        fallback.className = 'product-photo-fallback';
-        fallback.textContent = '💎';
-        fallback.setAttribute('aria-label', 'Imagem indisponível');
-        container.appendChild(fallback);
-      }
-    }
+    /* ---------- Produtos ---------- */
     function renderProdutos() {
       return `<div class="toolbar"><div><div style="font-size:.75rem;color:var(--muted);margin-bottom:.25rem">Catálogo</div><strong style="font-size:1.05rem">${DATA.produtos.length} produto(s)</strong></div><div style="display:flex;gap:.55rem;flex-wrap:wrap;align-items:center"><input class="search" placeholder="🔎 Buscar nome, SKU ou categoria..." oninput="filterCards(this,'prod-grid')"/><button class="btn btn-primary" onclick="modalProduto()">+ Novo produto</button></div></div>
   <div class="product-grid" id="prod-grid">${DATA.produtos.map(p => `<div class="product-card" data-q="${esc((p.nome + ' ' + (p.sku || '') + ' ' + (p.cat || '')).toLowerCase())}">
-    <div class="product-body"><div class="product-img ${fotoProdutoUrl(p) ? 'has-photo' : ''}">${fotoProdutoUrl(p) ? `<img src="${esc(fotoProdutoUrl(p))}" alt="${esc(p.nome)}" loading="lazy" decoding="async" onerror="falhaImagemProduto(this)"/>` : '💎'}</div><div class="product-info"><div class="meta" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${esc(p.cat || 'Geral')}</div><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
+    <div class="product-body"><div class="product-img ${p.foto ? 'has-photo' : ''}">${p.foto ? `<img src="${p.foto}" alt="${esc(p.nome)}"/>` : '💎'}</div><div class="product-info"><div class="meta" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${esc(p.cat || 'Geral')}</div><h4>${esc(p.nome)}</h4><div class="price">${money(p.preco)}</div>
     <div class="meta">${p.sku ? `SKU ${esc(p.sku)} · ` : ''}<strong>${p.estoque}</strong> em estoque</div></div></div>
     <div class="product-actions"><button class="btn btn-outline btn-sm" onclick="modalProduto('${p.id}')">✏️ Editar</button><button class="btn btn-danger btn-sm" onclick="delProduto('${p.id}')">Excluir</button></div></div>`).join('') || '<div class="empty">Nenhum produto cadastrado. Clique em “+ Novo produto” para começar.</div>'}</div>`;
     }
@@ -3685,15 +2118,15 @@
       if (!window.supabase || !zmSupabaseStorage) throw new Error('A conexão do armazenamento de fotos não carregou.');
       const ext = (file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg').replace('svg+xml', 'svg');
       const path = `${USER.uid}/produtos/${produtoId}_${Date.now()}.${ext}`;
-      const {error} = await zmSupabaseStorage.storage.from('catalogo-produtos').upload(path, file, {
+      const { error } = await zmSupabaseStorage.storage.from('catalogo-produtos').upload(path, file, {
         contentType: file.type,
         upsert: true,
         cacheControl: '3600'
       });
       if (error) throw error;
-      const {data} = zmSupabaseStorage.storage.from('catalogo-produtos').getPublicUrl(path);
+      const { data } = zmSupabaseStorage.storage.from('catalogo-produtos').getPublicUrl(path);
       if (!data?.publicUrl) throw new Error('Não foi possível obter o endereço público da foto.');
-      return {url: data.publicUrl, path};
+      return { url: data.publicUrl, path };
     }
     async function sincronizarCatalogoPublico(produtoId, produto) {
       if (!USER?.uid) throw new Error('Usuário não autenticado.');
@@ -3719,7 +2152,7 @@
       const p = byId('produtos', id) || {};
       window.__produtoFotoFile = null; window.__removerFoto = false;
       openModal(p.id ? 'Editar produto' : 'Novo produto', `
-    <div id="foto-preview" class="photo-preview">${fotoProdutoUrl(p) ? `<img src="${esc(fotoProdutoUrl(p))}" alt="Imagem atual do produto" onerror="falhaImagemProduto(this)"/>` : '📷 Sem imagem'}</div>
+    <div id="foto-preview" class="photo-preview">${p.foto ? `<img src="${p.foto}"/>` : '📷 Sem imagem'}</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
       <label class="btn btn-outline btn-sm" style="cursor:pointer">📷 Escolher foto<input id="f-foto" type="file" accept="image/*" style="display:none" onchange="previewProdutoFoto(this)"/></label>
       <button type="button" class="btn btn-danger btn-sm" onclick="removerFotoProduto()">🗑️ Retirar imagem</button>
@@ -3735,24 +2168,29 @@
       <span><strong>Exibir no catálogo público</strong><span class="meta" style="display:block;margin-top:.2rem">Quando marcado, nome, categoria, preço, código e foto ficam visíveis no site público.</span></span>
     </label>`, async () => {
         const nome = val('f-nome'), precoTexto = val('f-preco'), preco = Number(precoTexto);
-        if (!nome || !precoTexto || !Number.isFinite(preco) || preco < 0) {modalError('Informe nome e preço.'); return false;}
+        if (!nome || !precoTexto || !Number.isFinite(preco) || preco < 0) { modalError('Informe nome e preço.'); return false; }
         try {
           let produtoId = p.id || col('produtos').doc().id;
-          let foto = fotoProdutoUrl(p), fotoPath = p.fotoPath || '';
-          if (window.__removerFoto) {foto = ''; fotoPath = '';}
-          const payload = {nome, sku: val('f-sku'), preco, custo: Number(val('f-custo')) || 0, estoque: Number(val('f-est')) || 0, cat: val('f-cat') || 'Geral', foto, fotoPath, publicarCatalogo: document.getElementById('f-publicar-catalogo').checked, updatedAt: TS()};
+          // Primeiro salva os dados do produto no Firestore.
+          // Assim, se houver algum problema no Storage, o produto não é perdido.
+          let foto = p.foto || '', fotoPath = p.fotoPath || '';
+          if (window.__removerFoto) { foto = ''; fotoPath = ''; }
+          const payload = { nome, sku: val('f-sku'), preco, custo: Number(val('f-custo')) || 0, estoque: Number(val('f-est')) || 0, cat: val('f-cat') || 'Geral', foto, fotoPath, publicarCatalogo: document.getElementById('f-publicar-catalogo').checked, updatedAt: TS() };
           if (!p.id) payload.createdAt = TS();
-          if (!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'), {userMsg: 'Sua sessão expirou. Faça login novamente.'});
-          if (!db) throw Object.assign(new Error('Firestore não foi inicializado.'), {userMsg: 'O Firebase Firestore não foi inicializado. Recarregue a página.'});
+          if (!USER || !USER.uid) throw Object.assign(new Error('Usuário não autenticado.'), { userMsg: 'Sua sessão expirou. Faça login novamente.' });
+          if (!db) throw Object.assign(new Error('Firestore não foi inicializado.'), { userMsg: 'O Firebase Firestore não foi inicializado. Recarregue a página.' });
+          // O produto é salvo PRIMEIRO no Firestore. A foto nunca bloqueia o cadastro.
           const produtoRef = db.collection('users').doc(USER.uid).collection('produtos').doc(produtoId);
           await Promise.race([
-            produtoRef.set(payload, {merge: true}),
-            new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('O Firestore não respondeu em 15 segundos.'), {userMsg: 'O Firestore não respondeu em 15 segundos. Verifique a internet e as regras do Firestore.'})), 15000))
+            produtoRef.set(payload, { merge: true }),
+            new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('O Firestore não respondeu em 15 segundos.'), { userMsg: 'O Firestore não respondeu em 15 segundos. Verifique a internet e as regras do Firestore.' })), 15000))
           ]);
+
+          // Depois envia a nova foto, se houver.
           if (window.__produtoFotoFile) {
             try {
               const up = await uploadFotoProduto(window.__produtoFotoFile, produtoId);
-              await produtoRef.set({foto: up.url, fotoPath: up.path, updatedAt: TS()}, {merge: true});
+              await produtoRef.set({ foto: up.url, fotoPath: up.path, updatedAt: TS() }, { merge: true });
               foto = up.url; fotoPath = up.path; payload.foto = up.url; payload.fotoPath = up.path;
             } catch (photoErr) {
               console.error('Erro ao enviar foto ao Supabase Storage:', photoErr);
@@ -3765,6 +2203,8 @@
               showNotice(friendly + ' Detalhe técnico: ' + raw, 'error');
             }
           }
+          // Sincroniza apenas os campos destinados ao catálogo público.
+          // Custo, estoque, fotoPath e demais dados internos nunca são publicados.
           try {
             await sincronizarCatalogoPublico(produtoId, payload);
           } catch (publicErr) {
@@ -3782,19 +2222,20 @@
     }
     function previewProdutoFoto(input) {
       const f = input.files?.[0]; if (!f) return;
-      if (!f.type.startsWith('image/')) {showNotice('Selecione uma imagem válida.', 'error'); input.value = ''; return;}
-      if (f.size > 5 * 1024 * 1024) {showNotice('A foto deve ter no máximo 5 MB.', 'error'); input.value = ''; return;}
+      if (!f.type.startsWith('image/')) { showNotice('Selecione uma imagem válida.', 'error'); input.value = ''; return; }
+      if (f.size > 5 * 1024 * 1024) { showNotice('A foto deve ter no máximo 5 MB.', 'error'); input.value = ''; return; }
       window.__produtoFotoFile = f; window.__removerFoto = false;
-      const r = new FileReader(); r.onload = e => {document.getElementById('foto-preview').innerHTML = `<img src="${e.target.result}"/>`;}; r.readAsDataURL(f);
+      const r = new FileReader(); r.onload = e => { document.getElementById('foto-preview').innerHTML = `<img src="${e.target.result}"/>`; }; r.readAsDataURL(f);
     }
-    function removerFotoProduto() {window.__removerFoto = true; window.__produtoFotoFile = null; const el = document.getElementById('foto-preview'); if (el) el.innerHTML = '📷 Sem imagem'; const input = document.getElementById('f-foto'); if (input) input.value = '';}
+    function removerFotoProduto() { window.__removerFoto = true; window.__produtoFotoFile = null; const el = document.getElementById('foto-preview'); if (el) el.innerHTML = '📷 Sem imagem'; const input = document.getElementById('f-foto'); if (input) input.value = ''; }
 
     function delProduto(id) {
       const usado = DATA.vendas.some(v => v.produtoId === id) || DATA.compras.some(c => c.produtoId === id);
-      if (usado) {showNotice('Este produto tem vendas ou compras registradas e não pode ser excluído. Zere o estoque para tirá-lo de uso.', 'info'); return;}
+      if (usado) { showNotice('Este produto tem vendas ou compras registradas e não pode ser excluído. Zere o estoque para tirá-lo de uso.', 'info'); return; }
       delDoc('produtos', id);
     }
 
+    /* ---------- Vendas ---------- */
     function renderVendas() {
       const recebido = DATA.vendas.reduce((s, v) => s + recebidoVenda(v), 0), totalv = total(DATA.vendas);
       return `<div class="kpi-grid" style="margin-bottom:1rem"><div class="kpi"><div class="kpi-label">Vendas</div><div class="kpi-value">${DATA.vendas.length}</div><div class="kpi-sub">Registros</div></div><div class="kpi"><div class="kpi-label">Total vendido</div><div class="kpi-value">${money(totalv)}</div><div class="kpi-sub">Valor bruto</div></div><div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-value">${money(recebido)}</div><div class="kpi-sub">Valores pagos</div></div><div class="kpi"><div class="kpi-label">A receber</div><div class="kpi-value">${money(totalv - recebido)}</div><div class="kpi-sub">Saldo estimado</div></div></div>
@@ -3805,7 +2246,7 @@
   </tbody></table></div></div>`;
     }
     function modalVenda() {
-      if (!DATA.clientes.length || !DATA.produtos.length) {showNotice('Cadastre pelo menos 1 cliente e 1 produto.', 'info'); return;}
+      if (!DATA.clientes.length || !DATA.produtos.length) { showNotice('Cadastre pelo menos 1 cliente e 1 produto.', 'info'); return; }
       const oc = DATA.clientes.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
       openModal('Nova venda', `
     <div class="field"><label>Cliente</label><select id="f-cli">${oc}</select></div>
@@ -3816,59 +2257,50 @@
     <div class="row-2"><div class="field"><label>Forma de pagamento</label><select id="f-forma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select></div><div class="field"><label>Valor recebido / entrada</label><input id="f-recebido" type="number" step="0.01" min="0" value="0" oninput="calcTroco()"/></div></div>
     <div id="troco-box" class="modal-msg">Troco: <strong>R$ 0,00</strong></div>`, async () => {
         const clienteId = val('f-cli'), data = val('f-data') || today(), valor = +val('f-val') || 0, items = collectSaleItems();
-        if (!clienteId || !items.length || !(valor >= 0)) {modalError('Informe cliente, produto e valores.'); return false;}
+        if (!clienteId || !items.length || !(valor >= 0)) { modalError('Informe cliente, produto e valores.'); return false; }
         const tipoPagamento = val('f-pag'), prazoUma = tipoPagamento === 'prazo1', n = prazoUma ? 1 : (+tipoPagamento || 1);
         const recebidoDigitado = Math.max(0, round2(+val('f-recebido') || 0));
         let parcelas = null;
         if (prazoUma) {
           const paga = val('f-pago1') === '1';
-          if (recebidoDigitado > valor) {modalError('O valor recebido não pode ser maior que o total da venda.'); return false;}
-          parcelas = [{valor, pago: paga, venc: val('f-venc2') || addDays(data, 30), dataPagamento: paga ? data : null}];
+          if (recebidoDigitado > valor) { modalError('O valor recebido não pode ser maior que o total da venda.'); return false; }
+          parcelas = [{ valor, pago: paga, venc: val('f-venc2') || addDays(data, 30), dataPagamento: paga ? data : null }];
         } else if (n > 1) {
           const entradaPaga = val('f-pago1') === '1';
-          if (recebidoDigitado > valor) {modalError('O valor recebido não pode ser maior que o total da venda.'); return false;}
+          if (recebidoDigitado > valor) { modalError('O valor recebido não pode ser maior que o total da venda.'); return false; }
+          // Se a entrada já foi paga, a 1ª parcela usa o valor realmente recebido.
+          // O restante é dividido entre as parcelas seguintes, fechando exatamente o total.
           const entrada = entradaPaga ? recebidoDigitado : round2(valor / n);
-          if (entrada > valor) {modalError('A entrada não pode ser maior que o total da venda.'); return false;}
+          if (entrada > valor) { modalError('A entrada não pode ser maior que o total da venda.'); return false; }
           const restante = round2(valor - entrada), qtdRestantes = n - 1, base = round2(restante / qtdRestantes), v2 = val('f-venc2') || addMonths(data, 1);
-          parcelas = Array.from({length: n}, (_, i) => ({
+          parcelas = Array.from({ length: n }, (_, i) => ({
             valor: i === 0 ? entrada : (i === n - 1 ? round2(restante - base * (qtdRestantes - 1)) : base),
             venc: i === 0 ? data : addMonths(v2, i - 1),
             pago: i === 0 && entradaPaga, dataPagamento: i === 0 && entradaPaga ? data : null
           }));
         }
-        const qtdPorProduto = new Map();
-        for (const item of items) qtdPorProduto.set(item.produtoId, (qtdPorProduto.get(item.produtoId) || 0) + item.qtd);
-        const referencias = new Map([...qtdPorProduto.keys()].map(id => [id, col('produtos').doc(id)]));
+        const ids = items.map(x => x.produtoId), pref = ids.map(id => col('produtos').doc(id));
         await db.runTransaction(async t => {
-          const produtos = new Map();
-          for (const [id, ref] of referencias) {
-            const snap = await t.get(ref);
-            if (!snap.exists) throw Object.assign(new Error('Produto não encontrado.'), {userMsg: 'Produto não encontrado.'});
-            const produto = snap.data();
-            if (Number(produto.estoque || 0) < qtdPorProduto.get(id)) throw Object.assign(new Error('Estoque insuficiente.'), {userMsg: `Estoque insuficiente para ${produto.nome}.`});
-            produtos.set(id, produto);
-          }
-          const saved = items.map(item => {
-            const pd = produtos.get(item.produtoId);
-            return {...item, produtoNome: pd.nome, precoUnitario: item.preco, custo: Number(pd.custo || 0)};
-          });
-          for (const [id, ref] of referencias) t.update(ref, {estoque: Number(produtos.get(id).estoque || 0) - qtdPorProduto.get(id)});
+          const snaps = []; for (const ref of pref) snaps.push(await t.get(ref));
+          const saved = []; for (let i = 0; i < items.length; i++) { const snap = snaps[i]; if (!snap.exists) throw Object.assign(new Error(), { userMsg: 'Produto não encontrado.' }); const pd = snap.data(), item = items[i]; if (Number(pd.estoque || 0) < item.qtd) throw Object.assign(new Error(), { userMsg: `Estoque insuficiente para ${pd.nome}.` }); saved.push({ ...item, produtoNome: pd.nome, precoUnitario: item.preco, custo: Number(pd.custo || 0) }); t.update(pref[i], { estoque: Number(pd.estoque || 0) - item.qtd }); }
           const subtotal = saved.reduce((s, x) => s + x.preco * x.qtd, 0); const desconto = val('f-dtipo').startsWith('-') ? round2(subtotal - valor) : 0, acrescimo = val('f-dtipo').startsWith('+') ? round2(valor - subtotal) : 0;
+          // À vista, zero/vazio mantém a regra de pagamento integral; a prazo,
+          // o recebido efetivo é calculado pelas parcelas marcadas como pagas.
           const valorRecebido = tipoPagamento === '1' ? (recebidoDigitado > 0 ? Math.min(valor, recebidoDigitado) : valor) : round2((parcelas || []).filter(p => p.pago).reduce((s, p) => s + p.valor, 0));
-          t.set(col('vendas').doc(), {...(parcelas ? {parcelas} : {}), clienteId, clienteNome: byId('clientes', clienteId)?.nome || '', itens: saved, produtoId: saved[0].produtoId, produtoNome: saved[0].produtoNome, qtd: saved.reduce((s, x) => s + x.qtd, 0), precoUnitario: saved[0].preco, custo: saved[0].custo, subtotal, desconto, acrescimo, valor, data, formaPagamento: val('f-forma'), valorRecebido, createdAt: TS()});
+          t.set(col('vendas').doc(), { ...(parcelas ? { parcelas } : {}), clienteId, clienteNome: byId('clientes', clienteId)?.nome || '', itens: saved, produtoId: saved[0].produtoId, produtoNome: saved[0].produtoNome, qtd: saved.reduce((s, x) => s + x.qtd, 0), precoUnitario: saved[0].preco, custo: saved[0].custo, subtotal, desconto, acrescimo, valor, data, formaPagamento: val('f-forma'), valorRecebido, createdAt: TS() });
         });
         return true;
       });
       window.__saleItems = []; addSaleItem(); calcSale();
     }
     window.__saleItems = [];
-    function addSaleItem() {const box = document.getElementById('sale-items'); if (!box) return; const i = window.__saleItems.length; window.__saleItems.push({produtoId: DATA.produtos[0]?.id || '', qtd: 1, preco: Number(DATA.produtos[0]?.preco || 0)}); renderSaleItems();}
-    function renderSaleItems() {const box = document.getElementById('sale-items'); if (!box) return; const opts = DATA.produtos.map(p => `<option value="${p.id}">${esc(p.nome)} · ${money(p.preco)} · est ${p.estoque}</option>`).join(''); box.innerHTML = window.__saleItems.map((it, i) => `<div class="sale-item"><div class="field"><label>Produto</label><select onchange="changeSaleItem(${i},this.value)">${DATA.produtos.map(p => `<option value="${p.id}" ${p.id === it.produtoId ? 'selected' : ''}>${esc(p.nome)} · ${money(p.preco)} · est ${p.estoque}</option>`).join('')}</select></div><div class="field"><label>Qtd</label><input type="number" min="1" value="${it.qtd}" oninput="changeSaleQty(${i},this.value)"/></div><div class="field"><label>Subtotal</label><input value="${money(it.preco * it.qtd)}" readonly/></div><button class="btn btn-danger btn-sm" ${window.__saleItems.length === 1 ? 'disabled' : ''} onclick="removeSaleItem(${i})">×</button></div>`).join(''); calcSale();}
-    function changeSaleItem(i, id) {const p = byId('produtos', id); if (p) {window.__saleItems[i].produtoId = id; window.__saleItems[i].preco = Number(p.preco || 0); renderSaleItems();} }
-    function changeSaleQty(i, q) {window.__saleItems[i].qtd = Math.max(1, parseInt(q) || 1); calcSale();}
-    function removeSaleItem(i) {window.__saleItems.splice(i, 1); renderSaleItems();}
-    function collectSaleItems() {return window.__saleItems.filter(x => x.produtoId).map(x => ({...x, qtd: Math.max(1, parseInt(x.qtd) || 1), preco: Number(x.preco || 0)}));}
-    function calcSale() {const items = collectSaleItems(), sub = items.reduce((s, x) => s + x.preco * x.qtd, 0), d = +val('f-dsc') || 0, typ = val('f-dtipo'), adj = typ.endsWith('p') ? sub * d / 100 : d, final = typ.startsWith('-') ? Math.max(0, sub - Math.min(adj, sub)) : sub + adj; const el = document.getElementById('f-val'); if (el) el.value = final.toFixed(2); calcTroco();}
+    function addSaleItem() { const box = document.getElementById('sale-items'); if (!box) return; const i = window.__saleItems.length; window.__saleItems.push({ produtoId: DATA.produtos[0]?.id || '', qtd: 1, preco: Number(DATA.produtos[0]?.preco || 0) }); renderSaleItems(); }
+    function renderSaleItems() { const box = document.getElementById('sale-items'); if (!box) return; const opts = DATA.produtos.map(p => `<option value="${p.id}">${esc(p.nome)} · ${money(p.preco)} · est ${p.estoque}</option>`).join(''); box.innerHTML = window.__saleItems.map((it, i) => `<div class="sale-item"><div class="field"><label>Produto</label><select onchange="changeSaleItem(${i},this.value)">${DATA.produtos.map(p => `<option value="${p.id}" ${p.id === it.produtoId ? 'selected' : ''}>${esc(p.nome)} · ${money(p.preco)} · est ${p.estoque}</option>`).join('')}</select></div><div class="field"><label>Qtd</label><input type="number" min="1" value="${it.qtd}" oninput="changeSaleQty(${i},this.value)"/></div><div class="field"><label>Subtotal</label><input value="${money(it.preco * it.qtd)}" readonly/></div><button class="btn btn-danger btn-sm" ${window.__saleItems.length === 1 ? 'disabled' : ''} onclick="removeSaleItem(${i})">×</button></div>`).join(''); calcSale(); }
+    function changeSaleItem(i, id) { const p = byId('produtos', id); if (p) { window.__saleItems[i].produtoId = id; window.__saleItems[i].preco = Number(p.preco || 0); renderSaleItems(); } }
+    function changeSaleQty(i, q) { window.__saleItems[i].qtd = Math.max(1, parseInt(q) || 1); calcSale(); }
+    function removeSaleItem(i) { window.__saleItems.splice(i, 1); renderSaleItems(); }
+    function collectSaleItems() { return window.__saleItems.filter(x => x.produtoId).map(x => ({ ...x, qtd: Math.max(1, parseInt(x.qtd) || 1), preco: Number(x.preco || 0) })); }
+    function calcSale() { const items = collectSaleItems(), sub = items.reduce((s, x) => s + x.preco * x.qtd, 0), d = +val('f-dsc') || 0, typ = val('f-dtipo'), adj = typ.endsWith('p') ? sub * d / 100 : d, final = typ.startsWith('-') ? Math.max(0, sub - Math.min(adj, sub)) : sub + adj; const el = document.getElementById('f-val'); if (el) el.value = final.toFixed(2); calcTroco(); }
     function updPag() {
       const tipo = val('f-pag'), b = document.getElementById('box-2x');
       if (!b) return;
@@ -3879,41 +2311,25 @@
       if (pago) pago.textContent = prazoUma ? 'Pagamento' : '1ª parcela (entrada)';
       if (msg) msg.textContent = prazoUma ? 'A venda ficará com uma única parcela, que poderá ser baixada na data em que você receber.' : 'As parcelas seguintes vencem mensalmente.';
     }
-    function calcTroco() {const b = document.getElementById('troco-box'); if (!b) return; const totalv = +val('f-val') || 0, rec = +val('f-recebido') || 0; b.innerHTML = rec >= totalv ? `Troco: <strong>${money(rec - totalv)}</strong>` : `Falta: <strong>${money(totalv - rec)}</strong>`;}
+    function calcTroco() { const b = document.getElementById('troco-box'); if (!b) return; const totalv = +val('f-val') || 0, rec = +val('f-recebido') || 0; b.innerHTML = rec >= totalv ? `Troco: <strong>${money(rec - totalv)}</strong>` : `Falta: <strong>${money(totalv - rec)}</strong>`; }
     function modalParcelas(id) {
       const v = byId('vendas', id); if (!v) return; const ps = parcelasDe(v);
       openModal('Parcelas · ' + esc(nomeCli(v)), `<p class="modal-msg" style="margin-bottom:.6rem">${esc(nomeProd(v))} · total ${money(v.valor)}. Ao marcar uma parcela como paga, informe a data em que recebeu.</p>` + ps.map((p, i) => `<div style="display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:.6rem;align-items:center;padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.85rem"><div><label><input type="checkbox" id="pp-${i}" ${p.pago ? 'checked' : ''} onchange="document.getElementById('pd-${i}').disabled=!this.checked"/> ${i + 1}ª parcela</label><div class="field" style="margin:.35rem 0 0"><label>Data do recebimento</label><input id="pd-${i}" type="date" value="${p.dataPagamento || p.dataBaixa || ((p.pago) ? today() : '')}" ${p.pago ? '' : 'disabled'}/></div><span style="color:var(--muted);font-size:.72rem">Vencimento: ${fmtDate(p.venc)}</span></div><div class="field" style="margin:0"><label>Valor (R$)</label><input id="pv-${i}" type="number" min="0" step="0.01" value="${Number(p.valor || 0).toFixed(2)}"/></div></div>`).join(''), async () => {
-        const novo = ps.map((p, i) => {const pago = document.getElementById('pp-' + i).checked; const dataPagamento = document.getElementById('pd-' + i).value; return {...p, valor: round2(Math.max(0, Number(document.getElementById('pv-' + i).value) || 0)), pago, dataPagamento: pago ? (dataPagamento || today()) : null};});
+        const novo = ps.map((p, i) => { const pago = document.getElementById('pp-' + i).checked; const dataPagamento = document.getElementById('pd-' + i).value; return { ...p, valor: round2(Math.max(0, Number(document.getElementById('pv-' + i).value) || 0)), pago, dataPagamento: pago ? (dataPagamento || today()) : null }; });
         const soma = round2(novo.reduce((s, p) => s + p.valor, 0));
-        if (Math.abs(soma - Number(v.valor || 0)) > 0.01) {modalError(`A soma das parcelas (${money(soma)}) precisa ser igual ao total da venda (${money(v.valor)}).`); return false;}
-        if (novo.some(p => p.pago && !p.dataPagamento)) {modalError('Informe a data em que cada parcela foi recebida.'); return false;}
-        await col('vendas').doc(id).update({parcelas: novo, valorRecebido: round2(novo.filter(p => p.pago).reduce((s, p) => s + p.valor, 0))});
+        if (Math.abs(soma - Number(v.valor || 0)) > 0.01) { modalError(`A soma das parcelas (${money(soma)}) precisa ser igual ao total da venda (${money(v.valor)}).`); return false; }
+        if (novo.some(p => p.pago && !p.dataPagamento)) { modalError('Informe a data em que cada parcela foi recebida.'); return false; }
+        await col('vendas').doc(id).update({ parcelas: novo, valorRecebido: round2(novo.filter(p => p.pago).reduce((s, p) => s + p.valor, 0)) });
         return true;
-      }, {okMsg: 'Parcelas atualizadas'});
+      }, { okMsg: 'Parcelas atualizadas' });
     }
 
-    function imprimirVenda(id) {const v = byId('vendas', id); if (!v) return; const c = byId('clientes', v.clienteId); const items = itensVenda(v); const old = document.getElementById('receipt-print'); if (old) old.remove(); const el = document.createElement('div'); el.id = 'receipt-print'; el.className = 'receipt-print'; el.innerHTML = `<h1>ZM Pratas</h1><div class="center">Comprovante de venda</div><div class="center">${fmtDate(v.data)} · ${esc(nomeCli(v))}</div><table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>${items.map(i => `<tr><td>${esc(i.produtoNome || byId('produtos', i.produtoId)?.nome || 'Produto')}</td><td>${i.qtd}</td><td>${money(i.preco * i.qtd)}</td></tr>`).join('')}</tbody></table><div class="total">Total: ${money(v.valor)}</div><div>Pagamento: ${esc(v.formaPagamento || '—')}</div><div>Recebido: ${money(v.valorRecebido || recebidoVenda(v))}</div><div>Cliente: ${esc(c?.telefone || '')}</div>`; document.body.appendChild(el); window.print(); setTimeout(() => el.remove(), 800);}
+    function imprimirVenda(id) { const v = byId('vendas', id); if (!v) return; const c = byId('clientes', v.clienteId); const items = itensVenda(v); const root = document.getElementById('toast-root'); const old = document.getElementById('receipt-print'); if (old) old.remove(); const el = document.createElement('div'); el.id = 'receipt-print'; el.className = 'receipt-print'; el.innerHTML = `<h1>ZM Pratas</h1><div class="center">Comprovante de venda</div><div class="center">${fmtDate(v.data)} · ${esc(nomeCli(v))}</div><table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>${items.map(i => `<tr><td>${esc(i.produtoNome || byId('produtos', i.produtoId)?.nome || 'Produto')}</td><td>${i.qtd}</td><td>${money(i.preco * i.qtd)}</td></tr>`).join('')}</tbody></table><div class="total">Total: ${money(v.valor)}</div><div>Pagamento: ${esc(v.formaPagamento || '—')}</div><div>Recebido: ${money(v.valorRecebido || recebidoVenda(v))}</div><div>Cliente: ${esc(c?.telefone || '')}</div>`; document.body.appendChild(el); window.print(); setTimeout(() => el.remove(), 800); }
     function delVenda(id) {
-      openModal('Excluir venda', '<p class="modal-msg">Excluir e devolver todos os produtos ao estoque?</p>', async () => {
-        const v = byId('vendas', id); if (!v) return true;
-        const quantidades = new Map();
-        for (const item of itensVenda(v)) {
-          if (!item.produtoId) continue;
-          quantidades.set(item.produtoId, (quantidades.get(item.produtoId) || 0) + Number(item.qtd || 0));
-        }
-        await db.runTransaction(async t => {
-          const atualizacoes = [];
-          for (const [produtoId, qtd] of quantidades) {
-            const ref = col('produtos').doc(produtoId), snap = await t.get(ref);
-            if (snap.exists) atualizacoes.push({ref, estoque: Number(snap.data().estoque || 0) + qtd});
-          }
-          for (const item of atualizacoes) t.update(item.ref, {estoque: item.estoque});
-          t.delete(col('vendas').doc(id));
-        });
-        return true;
-      }, {saveLabel: 'Excluir', danger: true, okMsg: 'Venda excluída'});
+      openModal('Excluir venda', '<p class="modal-msg">Excluir e devolver todos os produtos ao estoque?</p>', async () => { const v = byId('vendas', id); if (!v) return true; await db.runTransaction(async t => { for (const it of itensVenda(v)) { const pref = col('produtos').doc(it.produtoId); const snap = await t.get(pref); if (snap.exists) t.update(pref, { estoque: Number(snap.data().estoque || 0) + Number(it.qtd || 0) }); } t.delete(col('vendas').doc(id)); }); return true; }, { saveLabel: 'Excluir', danger: true, okMsg: 'Venda excluída' });
     }
 
+    /* ---------- Clientes ---------- */
     function renderClientes() {
       return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'cli-table')"/><button class="btn btn-primary" onclick="modalCliente()">+ Novo cliente</button></div>
   <div class="card"><div class="table-wrap"><table id="cli-table"><thead><tr><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Instagram</th><th></th></tr></thead><tbody>
@@ -3935,19 +2351,21 @@
     <div class="field"><label>Endereço</label><input id="f-end" value="${esc(c.endereco || '')}" placeholder="Rua, número, bairro"/></div>
     <div class="field"><label>Instagram (opcional)</label><input id="f-ig" value="${esc(c.instagram || '')}" placeholder="@usuario"/></div>`, async () => {
         const nome = val('f-nome'), telefone = val('f-tel'), endereco = val('f-end');
-        if (!nome) {modalError('Informe o nome.'); return false;}
-        if (!telefone) {modalError('Informe o telefone.'); return false;}
-        if (!endereco) {modalError('Informe o endereço.'); return false;}
-        const payload = {nome, telefone, endereco, instagram: val('f-ig').replace(/^@/, ''), updatedAt: TS()};
-        if (c.id) await col('clientes').doc(c.id).set(payload, {merge: true});
-        else await col('clientes').add({...payload, createdAt: TS()});
+        if (!nome) { modalError('Informe o nome.'); return false; }
+        if (!telefone) { modalError('Informe o telefone.'); return false; }
+        if (!endereco) { modalError('Informe o endereço.'); return false; }
+        const payload = { nome, telefone, endereco, instagram: val('f-ig').replace(/^@/, ''), updatedAt: TS() };
+        if (c.id) await col('clientes').doc(c.id).set(payload, { merge: true });
+        else await col('clientes').add({ ...payload, createdAt: TS() });
         return true;
       });
     }
     function delCliente(id) {
+      // as vendas guardam o nome do cliente, então o histórico não se perde
       delDoc('clientes', id);
     }
 
+    /* ---------- Compras ---------- */
     function renderCompras() {
       return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'comp-table')"/><button class="btn btn-primary" onclick="modalCompra()">+ Compra</button></div>
   <div class="card"><div class="table-wrap"><table id="comp-table"><thead><tr><th>Data</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Reinvestimento</th><th>Fornecedor</th><th></th></tr></thead><tbody>
@@ -3960,7 +2378,7 @@
   </tbody></table></div></div>`;
     }
     function modalCompra() {
-      if (!DATA.produtos.length) {showNotice('Cadastre um produto antes.', 'info'); return;}
+      if (!DATA.produtos.length) { showNotice('Cadastre um produto antes.', 'info'); return; }
       const op = DATA.produtos.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('');
       openModal('Nova compra', `
     <div class="field"><label>Produto</label><select id="f-prod">${op}</select></div>
@@ -3972,17 +2390,18 @@
     <div class="field"><label>Data</label><input id="f-data" type="date" value="${today()}"/></div>`, async () => {
         const produtoId = val('f-prod'), qtd = Math.max(1, parseInt(val('f-qtd')) || 1), valor = +val('f-val') || 0, fornecedor = val('f-forn'), data = val('f-data') || today();
         const pagoReinvestimento = Math.max(0, +val('f-reinv-pago') || 0);
-        if (!produtoId) {modalError('Selecione o produto.'); return false;}
-        if (pagoReinvestimento > valor) {modalError('O valor usado da reserva não pode ser maior que a compra.'); return false;}
-        if (pagoReinvestimento > saldoReservaReinvestimento()) {modalError(`A reserva de reinvestimento disponível é ${money(saldoReservaReinvestimento())}.`); return false;}
+        if (!produtoId) { modalError('Selecione o produto.'); return false; }
+        if (pagoReinvestimento > valor) { modalError('O valor usado da reserva não pode ser maior que a compra.'); return false; }
+        if (pagoReinvestimento > saldoReservaReinvestimento()) { modalError(`A reserva de reinvestimento disponível é ${money(saldoReservaReinvestimento())}.`); return false; }
         const pref = col('produtos').doc(produtoId);
         await db.runTransaction(async t => {
           const snap = await t.get(pref);
-          if (!snap.exists) throw Object.assign(new Error(), {userMsg: 'Produto não encontrado.'});
-          const cur = snap.data(), est = Number(cur.estoque || 0), patch = {estoque: est + qtd};
+          if (!snap.exists) throw Object.assign(new Error(), { userMsg: 'Produto não encontrado.' });
+          const cur = snap.data(), est = Number(cur.estoque || 0), patch = { estoque: est + qtd };
+          // custo médio ponderado (em vez de sobrescrever com a última compra)
           if (valor > 0) patch.custo = round2((est * Number(cur.custo || 0) + valor) / (est + qtd));
           t.update(pref, patch);
-          t.set(col('compras').doc(), {produtoId, produtoNome: cur.nome, qtd, valor, pagoReinvestimento, fornecedor, data, createdAt: TS()});
+          t.set(col('compras').doc(), { produtoId, produtoNome: cur.nome, qtd, valor, pagoReinvestimento, fornecedor, data, createdAt: TS() });
         });
         return true;
       });
@@ -3993,29 +2412,30 @@
         await db.runTransaction(async t => {
           let snap = null; const pref = c.produtoId ? col('produtos').doc(c.produtoId) : null;
           if (pref) snap = await t.get(pref);
-          if (snap?.exists) t.update(pref, {estoque: Math.max(0, Number(snap.data().estoque || 0) - Number(c.qtd || 0))});
+          if (snap?.exists) t.update(pref, { estoque: Math.max(0, Number(snap.data().estoque || 0) - Number(c.qtd || 0)) });
           t.delete(col('compras').doc(id));
         });
         return true;
-      }, {saveLabel: 'Excluir', danger: true, okMsg: 'Compra excluída'});
+      }, { saveLabel: 'Excluir', danger: true, okMsg: 'Compra excluída' });
     }
 
+    /* ---------- Contas a Receber ---------- */
     function parcelasPendentes() {
       const out = [];
       DATA.vendas.forEach(v => {
-        parcelasDe(v).forEach((p, i) => {if (!p.pago) out.push({v, i, p});});
+        parcelasDe(v).forEach((p, i) => { if (!p.pago) out.push({ v, i, p }); });
       });
       return out.sort((a, b) => String(a.p.venc || '9999').localeCompare(String(b.p.venc || '9999')));
     }
     function marcarParcela(vendaId, index, pago = true) {
       const v = byId('vendas', vendaId); if (!v) return;
-      const ps = parcelasDe(v).map((p, i) => i === index ? {...p, pago} : p);
-      col('vendas').doc(vendaId).update({parcelas: ps}).then(async () => {await loadAll(); go('receber'); toast(pago ? 'Parcela marcada como paga' : 'Parcela marcada como pendente');}).catch(ex => showNotice(mapErr(ex.code), 'error'));
+      const ps = parcelasDe(v).map((p, i) => i === index ? { ...p, pago } : p);
+      col('vendas').doc(vendaId).update({ parcelas: ps }).then(async () => { await loadAll(); go('receber'); toast(pago ? 'Parcela marcada como paga' : 'Parcela marcada como pendente'); }).catch(ex => showNotice(mapErr(ex.code), 'error'));
     }
     function renderReceber() {
       const pend = parcelasPendentes(), totalPend = pend.reduce((s, x) => s + Number(x.p.valor || 0), 0);
       const atrasadas = pend.filter(x => x.p.venc && x.p.venc < today()), prox = pend.filter(x => !x.p.venc || x.p.venc >= today());
-      const row = x => {const atrasada = x.p.venc && x.p.venc < today(); return `<tr><td>${fmtDate(x.v.data)}</td><td>${esc(nomeCli(x.v))}</td><td>${esc(nomeProd(x.v))}</td><td>${x.i + 1}ª parcela</td><td>${fmtDate(x.p.venc)}</td><td><strong>${money(x.p.valor)}</strong></td><td>${atrasada ? '<span class="badge" >Atrasada</span>' : '<span class="badge warn">Pendente</span>'}</td><td><button class="btn btn-primary btn-sm" onclick="modalParcelas('${x.v.id}')">Registrar pagamento</button></td></tr>`};
+      const row = x => { const atrasada = x.p.venc && x.p.venc < today(); return `<tr><td>${fmtDate(x.v.data)}</td><td>${esc(nomeCli(x.v))}</td><td>${esc(nomeProd(x.v))}</td><td>${x.i + 1}ª parcela</td><td>${fmtDate(x.p.venc)}</td><td><strong>${money(x.p.valor)}</strong></td><td>${atrasada ? '<span class="badge" >Atrasada</span>' : '<span class="badge warn">Pendente</span>'}</td><td><button class="btn btn-primary btn-sm" onclick="marcarParcela('${x.v.id}',${x.i},true)">Marcar paga</button></td></tr>` };
       return `<div class="kpi-grid">
     <div class="kpi"><div class="kpi-label">💳 Total a receber</div><div class="kpi-value">${money(totalPend)}</div><div class="kpi-sub">${pend.length} parcela(s) pendente(s)</div></div>
     <div class="kpi"><div class="kpi-label">⚠️ Em atraso</div><div class="kpi-value">${money(atrasadas.reduce((s, x) => s + Number(x.p.valor || 0), 0))}</div><div class="kpi-sub">${atrasadas.length} parcela(s)</div></div>
@@ -4027,6 +2447,7 @@
   </tbody></table></div></div>`;
     }
 
+    /* ---------- Reinvestimento ---------- */
     // Dinheiro efetivamente recebido: venda à vista = valor; parcelada = só parcelas pagas
     const recebidoVenda = v => {
       if (parcelasDe(v).length) return round2(parcelasDe(v).filter(p => p.pago).reduce((s, p) => s + Number(p.valor || 0), 0));
@@ -4040,28 +2461,28 @@
       return round2(valor);
     };
     // Caixa real antes de retiradas: recebido nas vendas - compras - gastos
-    function caixaAntesRetiradas() {return DATA.vendas.reduce((s, v) => s + recebidoVenda(v), 0) - total(DATA.compras) - total(DATA.gastos);}
-    function totalRetiradas() {return total(DATA.reinvestimentos, 'retirada');}
-    function totalSeparadoReinvestimento() {return total(DATA.reinvestimentos, 'reinvestimento');}
+    function caixaAntesRetiradas() { return DATA.vendas.reduce((s, v) => s + recebidoVenda(v), 0) - total(DATA.compras) - total(DATA.gastos); }
+    function totalRetiradas() { return total(DATA.reinvestimentos, 'retirada'); }
+    function totalSeparadoReinvestimento() { return total(DATA.reinvestimentos, 'reinvestimento'); }
     // Compras que foram pagas usando dinheiro previamente reservado para reinvestir.
-    function totalUsadoDaReserva() {return total(DATA.compras, 'pagoReinvestimento');}
-    function saldoReservaReinvestimento() {return Math.max(0, totalSeparadoReinvestimento() - totalUsadoDaReserva());}
+    function totalUsadoDaReserva() { return total(DATA.compras, 'pagoReinvestimento'); }
+    function saldoReservaReinvestimento() { return Math.max(0, totalSeparadoReinvestimento() - totalUsadoDaReserva()); }
     // Caixa real já desconta compras, gastos e retiradas. A reserva restante reduz apenas o que está livre.
     function caixaLivre() {
       const recebido = DATA.vendas.reduce((s, v) => s + recebidoVenda(v), 0);
       const compras = total(DATA.compras), gastos = total(DATA.gastos), retiradas = totalRetiradas();
       return recebido - compras - gastos - retiradas - saldoReservaReinvestimento();
     }
-    let RANGE = {tipo: 'mes', de: '', ate: ''};
+    let RANGE = { tipo: 'mes', de: '', ate: '' };
     function rangeDates() {
       const t = today(); let de = t, ate = t;
-      if (RANGE.tipo === 'semana') {const wd = (new Date(t + 'T12:00:00').getDay() + 6) % 7; de = addDays(t, -wd);}
+      if (RANGE.tipo === 'semana') { const wd = (new Date(t + 'T12:00:00').getDay() + 6) % 7; de = addDays(t, -wd); }
       else if (RANGE.tipo === 'mes') de = t.slice(0, 8) + '01';
-      else if (RANGE.tipo === 'tudo') {de = '0000-01-01'; ate = '9999-12-31';}
-      else if (RANGE.tipo === 'custom') {de = RANGE.de || '0000-01-01'; ate = RANGE.ate || '9999-12-31';}
+      else if (RANGE.tipo === 'tudo') { de = '0000-01-01'; ate = '9999-12-31'; }
+      else if (RANGE.tipo === 'custom') { de = RANGE.de || '0000-01-01'; ate = RANGE.ate || '9999-12-31'; }
       return [de, ate];
     }
-    function setRange(t) {RANGE.tipo = t; go('reinvest');}
+    function setRange(t) { RANGE.tipo = t; go('reinvest'); }
     function modalReinvestimento() {
       openModal('Registrar retirada / reinvestimento', `
     <p class="modal-msg" style="margin-bottom:1rem">Registre quanto você tirou para você e quanto separou do lucro para investir nas próximas joias.</p>
@@ -4073,26 +2494,26 @@
     <div class="field"><label>Observação</label><input id="f-obs" placeholder="Ex.: Fechamento de outubro"/></div>
     <div class="modal-msg">Caixa livre antes deste registro: <strong>${money(caixaLivre())}</strong></div>`, async () => {
         const retirada = +val('f-retirada') || 0, reinvestimento = +val('f-reinv') || 0;
-        if (retirada <= 0 && reinvestimento <= 0) {modalError('Informe um valor para retirada ou reinvestimento.'); return false;}
+        if (retirada <= 0 && reinvestimento <= 0) { modalError('Informe um valor para retirada ou reinvestimento.'); return false; }
         const disponivel = Math.max(0, round2(caixaLivre()));
         const totalMovimento = round2(retirada + reinvestimento);
         if (totalMovimento > disponivel) {
           modalError(`Não é possível registrar R$ ${totalMovimento.toFixed(2).replace('.', ',')} porque o caixa livre disponível é de R$ ${disponivel.toFixed(2).replace('.', ',')}. O sistema considera somente o dinheiro já recebido, descontando compras, gastos, retiradas e a reserva existente. Parcelas pendentes não podem ser usadas. Confira os valores ou aguarde o recebimento.`);
           return false;
         }
-        await col('reinvestimentos').add({data: val('f-data') || today(), retirada, reinvestimento, obs: val('f-obs'), createdAt: TS()});
+        await col('reinvestimentos').add({ data: val('f-data') || today(), retirada, reinvestimento, obs: val('f-obs'), createdAt: TS() });
         return true;
-      }, {okMsg: 'Registro salvo'});
+      }, { okMsg: 'Registro salvo' });
     }
     function delReinvestimento(id) {
-      openModal('Excluir registro', '<p class="modal-msg">Excluir este registro de retirada/reinvestimento?</p>', async () => {await col('reinvestimentos').doc(id).delete(); return true;}, {saveLabel: 'Excluir', danger: true, okMsg: 'Registro excluído'});
+      openModal('Excluir registro', '<p class="modal-msg">Excluir este registro de retirada/reinvestimento?</p>', async () => { await col('reinvestimentos').doc(id).delete(); return true; }, { saveLabel: 'Excluir', danger: true, okMsg: 'Registro excluído' });
     }
     function renderReinvest() {
       const [de, ate] = rangeDates(), inR = l => l.filter(x => (x.data || '') >= de && (x.data || '') <= ate);
-      const pagamentosPeriodo = DATA.vendas.flatMap(v => recebimentosVenda(v).filter(r => (r.data || '') >= de && (r.data || '') <= ate).map(r => ({...r, venda: v})));
+      const pagamentosPeriodo = DATA.vendas.flatMap(v => recebimentosVenda(v).filter(r => (r.data || '') >= de && (r.data || '') <= ate).map(r => ({ ...r, venda: v })));
       const vs = DATA.vendas.filter(v => pagamentosPeriodo.some(r => r.venda.id === v.id)).sort((a, b) => String(b.data).localeCompare(String(a.data)));
       const rs = inR(DATA.reinvestimentos).sort((a, b) => String(b.data).localeCompare(String(a.data)));
-      const vend = round2(pagamentosPeriodo.reduce((s, r) => s + r.valor, 0)), custo = pagamentosPeriodo.reduce((s, r) => {const totalVenda = Number(r.venda.valor || 0); const proporcao = totalVenda > 0 ? Math.min(1, r.valor / totalVenda) : 0; return s + custoVenda(r.venda) * proporcao;}, 0), gas = total(inR(DATA.gastos)), comp = total(inR(DATA.compras));
+      const vend = round2(pagamentosPeriodo.reduce((s, r) => s + r.valor, 0)), custo = pagamentosPeriodo.reduce((s, r) => { const totalVenda = Number(r.venda.valor || 0); const proporcao = totalVenda > 0 ? Math.min(1, r.valor / totalVenda) : 0; return s + custoVenda(r.venda) * proporcao; }, 0), gas = total(inR(DATA.gastos)), comp = total(inR(DATA.compras));
       const lucroBruto = vend - custo, lucroLiquido = lucroBruto - gas;
       const retir = total(rs, 'retirada'), reinv = total(rs, 'reinvestimento');
       const rec = DATA.vendas.reduce((s, v) => s + recebidoVenda(v), 0), ct = total(DATA.compras), gt = total(DATA.gastos);
@@ -4141,7 +2562,7 @@
     ${rs.map(r => `<tr><td>${fmtDate(r.data)}</td><td>${r.retirada > 0 ? `<strong style="color:var(--danger)">${money(r.retirada)}</strong>` : '—'}</td><td>${r.reinvestimento > 0 ? `<strong style="color:var(--success)">${money(r.reinvestimento)}</strong>` : '—'}</td><td>${esc(r.obs || '—')}</td><td><button class="btn btn-danger btn-sm" onclick="delReinvestimento('${r.id}')">Excluir</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">Nenhuma retirada ou reinvestimento registrado no período</td></tr>'}
   </tbody></table></div></div>
   <div class="card"><div class="card-header"><h3>Vendas e recebimentos do período</h3></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Recebido</th><th>Custo proporcional</th><th>Lucro estimado</th></tr></thead><tbody>
-  ${pagamentosPeriodo.map(r => {const v = r.venda, totalVenda = Number(v.valor || 0), proporcao = totalVenda > 0 ? Math.min(1, r.valor / totalVenda) : 0, c = custoVenda(v) * proporcao, l = r.valor - c; return `<tr><td>${fmtDate(r.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(r.valor)}</td><td>${money(c)}</td><td><strong style="color:${l < 0 ? 'var(--danger)' : 'var(--success)'}">${money(l)}</strong></td></tr>`;}).join('') || '<tr><td colspan="6" class="empty">Nenhum recebimento no período</td></tr>'}
+  ${pagamentosPeriodo.map(r => { const v = r.venda, totalVenda = Number(v.valor || 0), proporcao = totalVenda > 0 ? Math.min(1, r.valor / totalVenda) : 0, c = custoVenda(v) * proporcao, l = r.valor - c; return `<tr><td>${fmtDate(r.data)}</td><td>${esc(nomeCli(v))}</td><td>${esc(nomeProd(v))}</td><td>${money(r.valor)}</td><td>${money(c)}</td><td><strong style="color:${l < 0 ? 'var(--danger)' : 'var(--success)'}">${money(l)}</strong></td></tr>`; }).join('') || '<tr><td colspan="6" class="empty">Nenhum recebimento no período</td></tr>'}
   </tbody></table></div></div>`;
     }
     // Aviso ao registrar compra: compara com o valor disponível para novas compras.
@@ -4156,6 +2577,7 @@
           v ? `Saldo livre após a compra: <strong>${money(caixaDepois)}</strong>` : 'Informe o valor da compra.');
     }
 
+    /* ---------- Gastos ---------- */
     function renderGastos() {
       return `<div class="toolbar"><input class="search" placeholder="Buscar..." oninput="filterTable(this,'gas-table')"/><button class="btn btn-primary" onclick="modalGasto()">+ Gasto</button></div>
   <div class="card"><div class="table-wrap"><table id="gas-table"><thead><tr><th>Data</th><th>Descrição</th><th>Cat</th><th>Valor</th><th></th></tr></thead><tbody>
@@ -4172,21 +2594,22 @@
     <div class="field"><label>Categoria</label><input id="f-cat" value="${esc(g.cat || '')}"/></div></div>
     <div class="field"><label>Data</label><input id="f-data" type="date" value="${g.data || today()}"/></div>`, async () => {
         const desc = val('f-desc'), valor = +val('f-val');
-        if (!desc || !val('f-val') || !(valor >= 0)) {modalError('Informe descrição e valor.'); return false;}
-        const payload = {desc, valor, cat: val('f-cat'), data: val('f-data') || today(), updatedAt: TS()};
-        if (g.id) await col('gastos').doc(g.id).set(payload, {merge: true});
-        else await col('gastos').add({...payload, createdAt: TS()});
+        if (!desc || !val('f-val') || !(valor >= 0)) { modalError('Informe descrição e valor.'); return false; }
+        const payload = { desc, valor, cat: val('f-cat'), data: val('f-data') || today(), updatedAt: TS() };
+        if (g.id) await col('gastos').doc(g.id).set(payload, { merge: true });
+        else await col('gastos').add({ ...payload, createdAt: TS() });
         return true;
       });
     }
 
+    /* ---------- Utilitários ---------- */
     function delDoc(collection, id) {
-      openModal('Excluir', '<p class="modal-msg">Tem certeza que deseja excluir?</p>', async () => {await col(collection).doc(id).delete(); return true;}, {saveLabel: 'Excluir', danger: true, okMsg: 'Excluído'});
+      openModal('Excluir', '<p class="modal-msg">Tem certeza que deseja excluir?</p>', async () => { await col(collection).doc(id).delete(); return true; }, { saveLabel: 'Excluir', danger: true, okMsg: 'Excluído' });
     }
-    function filterTable(input, id) {const q = input.value.toLowerCase(); document.querySelectorAll(`#${id} tbody tr`).forEach(tr => {tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';});}
-    function filterCards(input, id) {const q = input.value.toLowerCase(); document.querySelectorAll(`#${id} [data-q]`).forEach(el => {el.style.display = el.dataset.q.includes(q) ? '' : 'none';});}
+    function filterTable(input, id) { const q = input.value.toLowerCase(); document.querySelectorAll(`#${id} tbody tr`).forEach(tr => { tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; }); }
+    function filterCards(input, id) { const q = input.value.toLowerCase(); document.querySelectorAll(`#${id} [data-q]`).forEach(el => { el.style.display = el.dataset.q.includes(q) ? '' : 'none'; }); }
 
-    if (localStorage.getItem(THEME_KEY) === 'dark') {document.documentElement.classList.add('dark'); document.getElementById('theme-btn').textContent = '☀';}
+    if (localStorage.getItem(THEME_KEY) === 'dark') { document.documentElement.classList.add('dark'); document.getElementById('theme-btn').textContent = '☀'; }
   </script>
 </body>
 
